@@ -11,13 +11,13 @@ Create a Python virtual environment:
 
 ```bash
 virtualenv tagger
+source tagger/bin/activate
 ```
 
-Get the [latest version of the code](https://github.com/cedadev/cci-tagger/releases) and install it in the virtual environment:
+Find the [latest release of the code](https://github.com/cedadev/cci-tagger/releases) and install it in the virtual environment, i.e. for version 1.0.0:
 
 ```bash
-source tagger/bin/activate
-pip install cci_tagger-0.0.1.tar.gz
+pip install https://github.com/cedadev/cci-tagger/archive/v1.0.0.tar.gz
 ```
 
 ## Usage
@@ -41,7 +41,8 @@ Arguments:
 
     -s, --show_mappings   show the local vocabulary mappings
 
-    -m, --use_mappings    use the local vocabulary mappings
+    -m, --use_mappings    use the local vocabulary mappings. This will map a number of non compliant terms to
+                          allowed terms.
 
     --file_count FILE_COUNT
                           how many .nt files to look at per dataset

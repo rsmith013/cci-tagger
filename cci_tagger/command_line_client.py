@@ -96,7 +96,8 @@ class CCITaggerCommandLineClient(object):
 
         parser.add_argument(
             '-m', '--use_mappings', action='store_true',
-            help='use the local vocabulary mappings')
+            help=('use the local vocabulary mappings. This will map a number '
+                  'of non compliant terms to allowed terms.'))
         parser.add_argument(
             '--file_count',
             help='how many .nt files to look at per dataset',
