@@ -237,11 +237,15 @@ class ProcessDatasets(object):
 
             if self.__checksum:
                 sha256 = self._sha256(fpath)
+                mtime = os.path.getmtime(fpath)
+                size = os.path.getsize(fpath)
                 if dataset_id in drs.keys():
-                    drs[dataset_id].append({'file': fpath, 'sha256': sha256})
+                    drs[dataset_id].append({'file': fpath, 'sha256': sha256,
+                                            'mtime': mtime, 'size': size})
                 else:
                     drs_count = drs_count + 1
-                    drs[dataset_id] = [{'file': fpath, 'sha256': sha256}]
+                    drs[dataset_id] = [{'file': fpath, 'sha256': sha256,
+                                        'mtime': mtime, 'size': size}]
             else:
                 if dataset_id in drs.keys():
                     drs[dataset_id].append({'file': fpath})
@@ -529,9 +533,14 @@ class ProcessDatasets(object):
         for (var_id, var) in nc.variables.items():
             if self.__verbose >= 3:
                 print("\tVARIABLE ATTRIBUTES (%s)" % var_id)
+            if var_id == 'time':
+                if var.dimensions == ():
+                    self.__error_messages.add(
+                        'ERROR in %s, time has no dimensions' % ds)
+                    return {}, {}
             for attr in var.ncattrs():
                 if self.__verbose >= 3:
-                    print("\t%s=%s" % (attr, var.getncattr(attr)))
+                    print("\t\t%s=%s" % (attr, var.getncattr(attr)))
                 if (attr.lower() == 'long_name' and
                         len(var.getncattr(attr)) == 0):
                     self.__error_messages.add(
