@@ -34,4 +34,4 @@ from cci_tagger.command_line_client import CCITaggerCommandLineClient
 
 __all__ = ['CCITaggerCommandLineClient']
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
