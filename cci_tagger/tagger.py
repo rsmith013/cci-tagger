@@ -33,6 +33,7 @@ import hashlib
 import json
 import os
 from time import strftime
+
 import netCDF4
 
 from cci_tagger.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM,\
@@ -142,10 +143,10 @@ class ProcessDatasets(object):
         self.__error_messages = set()
         self.__ds_drs_mapping = set()
         self.__drs_version = 'v{}'.format(strftime("%Y%m%d"))
-        self.__user_assigned_tags = self._init_user_assigned_tags(
+        self.__user_assigned_defaults = self._init_user_assigned_defaults(
             default_terms_file)
 
-    def _init_user_assigned_tags(self, default_terms_file):
+    def _init_user_assigned_defaults(self, default_terms_file):
         if default_terms_file is None:
             return {}
 
@@ -228,7 +229,7 @@ class ProcessDatasets(object):
                 processed.
 
         """
-        tags_ds = dict(self.__user_assigned_tags)
+        tags_ds = dict(self.__user_assigned_defaults)
         drs_count = 0
 
         # key drs id, value realization
@@ -247,7 +248,7 @@ class ProcessDatasets(object):
 
         for fpath in nc_files:
             # the terms to be used to generate the DRS
-            drs_facets = dict(self.__user_assigned_tags)
+            drs_facets = dict(self.__user_assigned_defaults)
 
             net_cdf_drs, net_cdf_tags = self._parse_file_name(
                 ds, fpath)

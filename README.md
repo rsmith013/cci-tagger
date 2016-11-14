@@ -59,7 +59,7 @@ Arguments:
     -v, --verbose         increase output verbosity
 
 
-# Output
+## Output
 
 A number of files are produced as output:
 *  __esgf_drs.json__ contains a list of DRS and associated files and check sums
@@ -67,7 +67,7 @@ A number of files are produced as output:
 *  __moles_esgf_mapping.csv__ contains mappings between dataset paths and DRS
 *  __error.txt__ contains a list of errors
 
-# Examples
+## Examples
 
 ```bash
 moles_esgf_tag -d /neodc/esacci/cloud/data/L3C/avhrr_noaa-16 -v
@@ -75,7 +75,7 @@ moles_esgf_tag -f datapath --file_count 2 --no_check_sum -m -v
 moles_esgf_tag -s
 ```
 
-# DEFAULT\_TERMS\_FILE
+## DEFAULT\_TERMS\_FILE
 This file should have the format of:
 ```bash
 <property name>=<vocabulary term>

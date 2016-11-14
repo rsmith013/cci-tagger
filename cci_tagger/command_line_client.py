@@ -77,19 +77,25 @@ class CCITaggerCommandLineClient(object):
             '-v'
             '\n  moles_esgf_tag -f datapath --file_count 2 --no_check_sum -v'
             '\n  moles_esgf_tag -s'
+            '\n\nDEFAULT_TERMS_FILE'
+            '\n  This file should have the format of:'
+            '\n    <property name>=<vocabulary term>'
+            '\n\n  For example:'
+            '\n    ecv=soil moisture'
+            '\n    processing_level=Level 4'
             '\n',
             formatter_class=RawDescriptionHelpFormatter)
 
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument(
+            '-d', '--dataset',
+            help=('the full path to the dataset that is to be tagged. This '
+                  'option is used to tag a single dataset.'))
+        group.add_argument(
             '-f', '--file',
             help=('the name of the file containing a list of datasets to '
                   'process. This option is used for tagging one or more '
                   'datasets.'))
-        group.add_argument(
-            '-d', '--dataset',
-            help=('the full path to the dataset that is to be tagged. This '
-                  'option is used to tag a single dataset.'))
         group.add_argument(
             '-s', '--show_mappings', action='store_true',
             help='show the local vocabulary mappings')
@@ -98,6 +104,14 @@ class CCITaggerCommandLineClient(object):
             '-m', '--use_mappings', action='store_true',
             help=('use the local vocabulary mappings. This will map a number '
                   'of non compliant terms to allowed terms.'))
+        parser.add_argument(
+            '-u', '--update_moles', action='store_true',
+            help=('update the MOLEs catalogue directly rather than produce '
+                  'a csv file.'))
+        parser.add_argument(
+            '-t', '--default_terms_file',
+            help=('the name of the file containing a list of default '
+                  'vocabulary terms to associate with a dataset'))
         parser.add_argument(
             '--file_count',
             help='how many .nt files to look at per dataset',
@@ -136,7 +150,8 @@ class CCITaggerCommandLineClient(object):
 
         pds = ProcessDatasets(
             checksum=not(args.no_check_sum), use_mapping=args.use_mappings,
-            verbose=args.verbose)
+            verbose=args.verbose, update_moles=args.update_moles,
+            default_terms_file=args.default_terms_file)
         pds.process_datasets(datasets, args.file_count)
 
         if args.verbose >= 1:
