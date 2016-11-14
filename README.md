@@ -23,7 +23,8 @@ pip install https://github.com/cedadev/cci-tagger/archive/v1.0.1.tar.gz
 ## Usage
 
 ```
-moles_esgf_tag [-h] (-f FILE | -d DATASET | -s) [--file_count FILE_COUNT] [--no_check_sum] [-v]
+moles_esgf_tag [-h] (-d DATASET | -f FILE | -s) [-m] [-u] [--file_count FILE_COUNT] [-t DEFAULT_TERMS_FILE]
+               [--no_check_sum] [-v]
 ```
 
 You can tag an individual dataset, or tag all the datasets listed in a file. By default a check sum will be produces for each file.
@@ -32,17 +33,23 @@ Arguments:
 
     -h, --help            show help message and exit
 
-    -f FILE, --file FILE  the name of the file containing a list of datasets to process. This option is used for
-                          tagging one or more datasets.
-
     -d DATASET, --dataset DATASET
                           the full path to the dataset that is to be tagged. This option is used to tag a single
                           dataset.
+
+    -f FILE, --file FILE  the name of the file containing a list of datasets to process. This option is used for
+                          tagging one or more datasets.
 
     -s, --show_mappings   show the local vocabulary mappings
 
     -m, --use_mappings    use the local vocabulary mappings. This will map a number of non compliant terms to
                           allowed terms.
+
+    -u, --update_moles    update the MOLEs catalogue directly rather than produce a csv file.
+
+    -t DEFAULT_TERMS_FILE, --default_terms_file DEFAULT_TERMS_FILE
+                          the name of the file containing a list of default vocabulary terms to associate with
+                          a dataset
 
     --file_count FILE_COUNT
                           how many .nt files to look at per dataset
@@ -68,3 +75,14 @@ moles_esgf_tag -f datapath --file_count 2 --no_check_sum -m -v
 moles_esgf_tag -s
 ```
 
+# DEFAULT\_TERMS\_FILE
+This file should have the format of:
+```bash
+<property name>=<vocabulary term>
+```
+
+For example:
+```bash
+ecv=soil moisture
+processing_level=Level 4
+```
