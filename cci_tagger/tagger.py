@@ -39,10 +39,11 @@ from cci_tagger.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM,\
     SENSOR, ECV, PLATFORM_PROGRAMME, PLATFORM_GROUP, PROCESSING_LEVEL,\
     PRODUCT_STRING, PRODUCT_VERSION, LEVEL_2_FREQUENCY,\
     BROADER_PROCESSING_LEVEL
-from cci_tagger.settings import ERROR_FILE, ESGF_DRS_FILE, MOLES_TAGS_FILE,\
-    MOLES_ESGF_MAPPING_FILE
 from cci_tagger.facets import Facets
 from cci_tagger.mappings import LocalVocabMappings
+from cci_tagger.properties_parser import Properties
+from cci_tagger.settings import ERROR_FILE, ESGF_DRS_FILE, MOLES_TAGS_FILE,\
+    MOLES_ESGF_MAPPING_FILE
 from cci_tagger.triple_store import TripleStore
 
 
@@ -108,7 +109,8 @@ class ProcessDatasets(object):
 
     __allowed_net_cdf_attribs = [FREQUENCY, INSTITUTION, PLATFORM, SENSOR]
 
-    def __init__(self, checksum=True, use_mapping=True, verbose=0):
+    def __init__(self, checksum=True, use_mapping=True, verbose=0,
+                 update_moles=False, default_terms_file=None):
         """
         Initialise the ProcessDatasets class.
 
@@ -121,6 +123,16 @@ class ProcessDatasets(object):
         self.__checksum = checksum
         self.__use_mapping = use_mapping
         self.__verbose = verbose
+        self.__update_moles = update_moles
+        if self.__update_moles:
+            try:
+                from tools.vocab_tools.tag_obs_with_vocab_terms import \
+                    tag_observation
+                self._tag_observation = tag_observation
+            except ImportError:
+                print('Oops. Looks like you have selected to write to MOLEs '
+                      'but we cannot find the MOLEs library')
+                exit(1)
         if self.__facets is None:
             self.__facets = Facets()
         self.__file_drs = None
@@ -130,6 +142,31 @@ class ProcessDatasets(object):
         self.__error_messages = set()
         self.__ds_drs_mapping = set()
         self.__drs_version = 'v{}'.format(strftime("%Y%m%d"))
+        self.__user_assigned_tags = self._init_user_assigned_tags(
+            default_terms_file)
+
+    def _init_user_assigned_tags(self, default_terms_file):
+        if default_terms_file is None:
+            return {}
+
+        properties = Properties(default_terms_file).properties()
+        # validate the user values against data from the triple store
+        for key in properties.keys():
+            try:
+                labels = self.__facets.get_labels((key.lower())).keys()
+            except KeyError:
+                print('ERROR "{key}" in {file} is not a valid facet value. '
+                      'Should be one of {facets}.'.
+                      format(key=key, file=default_terms_file,
+                             facets=', '.join(sorted(properties.keys()))))
+                exit(1)
+            if properties[key].lower() not in labels:
+                print ('ERROR "{value}" in {file} is not a valid value for '
+                       '{facet}. Should be one of {labels}.'.
+                       format(value=properties[key], file=default_terms_file,
+                              facet=key, labels=', '.join(sorted(labels))))
+                exit(1)
+        return properties
 
     def process_datasets(self, datasets, max_file_count):
         """
@@ -184,12 +221,14 @@ class ProcessDatasets(object):
                            value (dict):
                                key = 'file', value = the file path
                                key = 'sha256', value = the sha256 of the file
+                               key = 'size', value = the siz of the file
+                               key = 'mtime', value = the mtime of the file
         @param max_file_count (int): how many .nt files to look at per dataset
                 If the value is less than 1 then all datasets will be
                 processed.
 
         """
-        tags_ds = {}
+        tags_ds = dict(self.__user_assigned_tags)
         drs_count = 0
 
         # key drs id, value realization
@@ -207,20 +246,21 @@ class ProcessDatasets(object):
             return
 
         for fpath in nc_files:
-            drs_ds = {}
+            # the terms to be used to generate the DRS
+            drs_facets = dict(self.__user_assigned_tags)
 
             net_cdf_drs, net_cdf_tags = self._parse_file_name(
                 ds, fpath)
-            drs_ds.update(net_cdf_drs)
+            drs_facets.update(net_cdf_drs)
             tags_ds.update(net_cdf_tags)
             net_cdf_drs, net_cdf_tags = self._scan_net_cdf_file(
                 fpath, ds, net_cdf_tags.get(PROCESSING_LEVEL))
-            drs_ds.update(net_cdf_drs)
+            drs_facets.update(net_cdf_drs)
             tags_ds.update(net_cdf_tags)
 
-            dataset_id = self._generate_ds_id(ds, drs_ds)
+            dataset_id = self._generate_ds_id(ds, drs_facets)
             # only add files with all of the drs data
-            if dataset_id is None:
+            if dataset_id is None or drs_facets.get('error'):
                 continue
 
             if dataset_id not in current_drs_ids.keys():
@@ -537,7 +577,7 @@ class ProcessDatasets(object):
                 if var.dimensions == ():
                     self.__error_messages.add(
                         'ERROR in %s, time has no dimensions' % ds)
-                    return {}, {}
+                    drs['error'] = True
             for attr in var.ncattrs():
                 if self.__verbose >= 3:
                     print("\t\t%s=%s" % (attr, var.getncattr(attr)))
@@ -679,14 +719,14 @@ class ProcessDatasets(object):
 
         return tags
 
-    def _generate_ds_id(self, ds, drs_ds):
+    def _generate_ds_id(self, ds, drs_facets):
         error = False
         facets = [ECV, FREQUENCY, PROCESSING_LEVEL, DATA_TYPE, SENSOR,
                   PLATFORM, PRODUCT_STRING, PRODUCT_VERSION]
         ds_id = self.DRS_ESACCI
         for facet in facets:
             try:
-                if drs_ds[facet] == '':
+                if drs_facets[facet] == '':
                     error = True
                     message_found = False
                     # Do not add another message if we have already reported an
@@ -702,7 +742,7 @@ class ProcessDatasets(object):
                             (ds, facet))
 
                 else:
-                    facet_value = str(drs_ds[facet]).replace(
+                    facet_value = str(drs_facets[facet]).replace(
                         '.', '-').replace(' ', '-')
                     if facet == FREQUENCY:
                         facet_value = facet_value.replace(
@@ -740,14 +780,20 @@ class ProcessDatasets(object):
         multi_values = [FREQUENCY, INSTITUTION, PLATFORM, SENSOR]
         for value in single_values:
             try:
-                self.__file_csv.write('%s,%s\n' % (ds, drs[value]))
+                if self.__update_moles:
+                    self._tag_observation(ds, drs[value], 'clipc_skos_vocab')
+                else:
+                    self.__file_csv.write('%s,%s\n' % (ds, drs[value]))
             except KeyError:
                 pass
 
         for value in multi_values:
             try:
                 for uri in drs[value]:
-                    self.__file_csv.write('%s,%s\n' % (ds, uri))
+                    if self.__update_moles:
+                        self._tag_observation(ds, uri, 'clipc_skos_vocab')
+                    else:
+                        self.__file_csv.write('%s,%s\n' % (ds, uri))
             except KeyError:
                 pass
 
