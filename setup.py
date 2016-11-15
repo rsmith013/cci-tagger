@@ -48,6 +48,6 @@ setup(
     install_requires=[
         'SPARQLWrapper==1.7.6',
         'netCDF4',
-        'html5lib==0.9999999',
+        'html5lib',
     ],
 )

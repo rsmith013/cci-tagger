@@ -131,8 +131,8 @@ class ProcessDatasets(object):
                     tag_observation
                 self._tag_observation = tag_observation
             except ImportError:
-                print('Oops. Looks like you have selected to write to MOLEs '
-                      'but we cannot find the MOLEs library')
+                print('Oops. Looks like you have selected to write to MOLES '
+                      'but we cannot find the MOLES library')
                 exit(1)
         if self.__facets is None:
             self.__facets = Facets()
@@ -206,9 +206,7 @@ class ProcessDatasets(object):
             for message in sorted(self.__error_messages):
                 f.write('%s\n' % message)
 
-        with open(MOLES_ESGF_MAPPING_FILE, 'w') as f:
-            for message in sorted(self.__ds_drs_mapping):
-                f.write('%s\n' % message)
+        self._write_moles_drs_mapping()
 
         self._close_files()
 
@@ -267,10 +265,10 @@ class ProcessDatasets(object):
             if dataset_id not in current_drs_ids.keys():
                 current_drs_ids[dataset_id] = self._get_next_realization(
                     ds, dataset_id, drs)
-                dataset_id = '%s.%s.%s' % (
-                    dataset_id, current_drs_ids[dataset_id],
-                    self.__drs_version)
-                self.__ds_drs_mapping.add('%s,%s' % (ds, dataset_id))
+                dataset_id = '%s.%s' % (dataset_id,
+                                        current_drs_ids[dataset_id])
+                self.__ds_drs_mapping.add((ds, dataset_id, self.__drs_version))
+                dataset_id = '%s.%s' % (dataset_id, self.__drs_version)
             else:
                 dataset_id = '%s.%s.%s' % (
                     dataset_id, current_drs_ids[dataset_id],
@@ -305,7 +303,7 @@ class ProcessDatasets(object):
                 count=drs_count, entry='entry'
                 if drs_count == 1 else 'entries'))
 
-        self._write_csv(ds, tags_ds)
+        self._write_moles_tags(ds, tags_ds)
 
     def _sha256(self, fpath):
         """
@@ -316,6 +314,8 @@ class ProcessDatasets(object):
         @return the sha256 of the file
 
         """
+        if self.__verbose >= 2:
+            print('Generating sha256')
         h = hashlib.sha256()
         f = open(fpath)
         while True:
@@ -775,28 +775,50 @@ class ProcessDatasets(object):
                 return 'r%s' % (realization_no)
             realization_no = realization_no + 1
 
-    def _write_csv(self, ds, drs):
+    def _write_moles_tags(self, ds, drs):
         single_values = [BROADER_PROCESSING_LEVEL, DATA_TYPE, ECV,
                          PROCESSING_LEVEL, PRODUCT_STRING]
         multi_values = [FREQUENCY, INSTITUTION, PLATFORM, SENSOR]
+        if self.__update_moles:
+            if self.__verbose >= 2:
+                print('Updating MOLES tags')
         for value in single_values:
             try:
-                if self.__update_moles:
-                    self._tag_observation(ds, drs[value], 'clipc_skos_vocab')
-                else:
-                    self.__file_csv.write('%s,%s\n' % (ds, drs[value]))
+                self._write_moles_tags_out(ds, drs[value])
             except KeyError:
                 pass
 
         for value in multi_values:
             try:
                 for uri in drs[value]:
-                    if self.__update_moles:
-                        self._tag_observation(ds, uri, 'clipc_skos_vocab')
-                    else:
-                        self.__file_csv.write('%s,%s\n' % (ds, uri))
+                    self._write_moles_tags_out(ds, uri)
             except KeyError:
                 pass
+
+    def _write_moles_tags_out(self, ds, uri):
+        if self.__update_moles:
+            self._tag_observation(ds, uri, 'clipc_skos_vocab')
+        else:
+            self.__file_csv.write('{ds},{uri}\n'.format(ds=ds, uri=uri))
+
+    def _write_moles_drs_mapping(self):
+        if self.__update_moles:
+            self._write_moles_drs_mapping_to_moles()
+        else:
+            self._write_moles_drs_mapping_to_file()
+
+    def _write_moles_drs_mapping_to_moles(self):
+        if self.__verbose >= 2:
+            print('Updating MOLES ESGF mapping')
+        from tools.esgf_tools.add_drs_datasets import add_mapping
+        for directory, drs_id, version in self.__ds_drs_mapping:
+            add_mapping(directory, drs_id, version)
+
+    def _write_moles_drs_mapping_to_file(self):
+        with open(MOLES_ESGF_MAPPING_FILE, 'w') as f:
+            for directory, drs_id, version in sorted(self.__ds_drs_mapping):
+                f.write('{directory},{drs_id}.{version}\n'.format(
+                    directory=directory, drs_id=drs_id, version=version))
 
     def _write_json(self, drs):
         self.__file_drs.write(
@@ -818,9 +840,11 @@ class ProcessDatasets(object):
         return term
 
     def _open_files(self, ):
-        self.__file_csv = open(MOLES_TAGS_FILE, 'w')
+        if not self.__update_moles:
+            self.__file_csv = open(MOLES_TAGS_FILE, 'w')
         self.__file_drs = open(ESGF_DRS_FILE, 'w')
 
     def _close_files(self, ):
-        self.__file_csv.close()
+        if not self.__update_moles:
+            self.__file_csv.close()
         self.__file_drs.close()
