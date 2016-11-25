@@ -101,14 +101,19 @@ class ProcessDatasets(object):
     """
     ESACCI = 'ESACCI'
     DRS_ESACCI = 'esacci'
-    MULTI_SENSOR = 'multi-sensor'
-    MULTI_PLATFORM = 'multi-platform'
-    MULTI_FREQUENCY = 'multi-frequency'
 
     # an instance of the facets class
     __facets = None
 
     __allowed_net_cdf_attribs = [FREQUENCY, INSTITUTION, PLATFORM, SENSOR]
+    __single_valued_facets = [BROADER_PROCESSING_LEVEL, DATA_TYPE, ECV,
+                              PROCESSING_LEVEL, PRODUCT_STRING]
+    __multi_valued_facet_labels = {
+        FREQUENCY: 'multi-frequency',
+        INSTITUTION: 'multi-institution',
+        PLATFORM: 'multi-platform',
+        SENSOR: 'multi-sensor'
+    }
 
     def __init__(self, checksum=True, use_mapping=True, verbose=0,
                  update_moles=False, default_terms_file=None):
@@ -143,31 +148,57 @@ class ProcessDatasets(object):
         self.__error_messages = set()
         self.__ds_drs_mapping = set()
         self.__drs_version = 'v{}'.format(strftime("%Y%m%d"))
-        self.__user_assigned_defaults = self._init_user_assigned_defaults(
-            default_terms_file)
+        self.__user_assigned_defaults, self.__user_assigned_defaults_uris = (
+            self._init_user_assigned_defaults(default_terms_file))
 
     def _init_user_assigned_defaults(self, default_terms_file):
         if default_terms_file is None:
-            return {}
+            return {}, {}
 
+        tags = {}
+        tag_uris = {}
         properties = Properties(default_terms_file).properties()
         # validate the user values against data from the triple store
         for key in properties.keys():
+            # get the values for a facet (property key)
             try:
-                labels = self.__facets.get_labels((key.lower())).keys()
+                labels = self.__facets.get_labels((key.lower()))
             except KeyError:
                 print('ERROR "{key}" in {file} is not a valid facet value. '
                       'Should be one of {facets}.'.
                       format(key=key, file=default_terms_file,
-                             facets=', '.join(sorted(properties.keys()))))
+                             facets=', '.join(
+                                 sorted(self.__facets.get_facet_names()))))
                 exit(1)
-            if properties[key].lower() not in labels:
-                print ('ERROR "{value}" in {file} is not a valid value for '
-                       '{facet}. Should be one of {labels}.'.
-                       format(value=properties[key], file=default_terms_file,
-                              facet=key, labels=', '.join(sorted(labels))))
-                exit(1)
-        return properties
+
+            if key in self.__multi_valued_facet_labels.keys():
+                tag_uris[key] = set()
+                values = properties[key].lower().split(',')
+                for value in values:
+                    value = value.strip().lower()
+                    self._check_property_value(
+                        value, labels.keys(), key, default_terms_file)
+                    tag_uris[key].add(labels[value])
+                if len(values) > 1:
+                    tags[key] = self.__multi_valued_facet_labels[key]
+                else:
+                    tags[key] = values[0].strip().lower()
+            else:
+                value = properties[key].strip().lower()
+                self._check_property_value(
+                    value, labels.keys(), key, default_terms_file)
+                tag_uris[key] = labels[properties[key].lower()]
+                tags[key] = value
+        return tags, tag_uris
+
+    def _check_property_value(self, value, labels, facet, default_terms_file):
+        if value not in labels:
+            print ('ERROR "{value}" in {file} is not a valid value for '
+                   '{facet}. Should be one of {labels}.'.
+                   format(value=value, file=default_terms_file,
+                          facet=facet, labels=', '.join(sorted(labels))))
+            exit(1)
+        return True
 
     def process_datasets(self, datasets, max_file_count):
         """
@@ -227,7 +258,7 @@ class ProcessDatasets(object):
                 processed.
 
         """
-        tags_ds = dict(self.__user_assigned_defaults)
+        tags_ds = dict(self.__user_assigned_defaults_uris)
         drs_count = 0
 
         # key drs id, value realization
@@ -565,7 +596,8 @@ class ProcessDatasets(object):
                 tags.update(a_tags)
             # we don't have a vocab for product_version
             elif global_attr.lower() == PRODUCT_VERSION:
-                attr = nc.getncattr(global_attr)
+                attr = self._convert_term(
+                    PRODUCT_VERSION, nc.getncattr(global_attr))
                 drs[PRODUCT_VERSION] = attr
                 tags[PRODUCT_VERSION] = attr
 
@@ -659,12 +691,11 @@ class ProcessDatasets(object):
                 self._attrib_not_found_message(ds, global_attr, attr,
                                                bit.strip())
 
-        if term_count > 1 and global_attr == SENSOR:
-            drs[global_attr] = self.MULTI_SENSOR
-        elif term_count > 1 and global_attr == PLATFORM:
-            drs[global_attr] = self.MULTI_PLATFORM
-        elif term_count > 1 and global_attr == FREQUENCY:
-            drs[global_attr] = self.MULTI_FREQUENCY
+        if term_count > 1 and (global_attr == SENSOR or
+                               global_attr == PLATFORM or
+                               global_attr == FREQUENCY):
+            #             drs[global_attr] = self.MULTI_SENSOR
+            drs[global_attr] = self.__multi_valued_facet_labels[global_attr]
 
         if (drs == {} and not((global_attr == PLATFORM or
                                global_attr == SENSOR) and (attr == "N/A"))):
@@ -776,19 +807,16 @@ class ProcessDatasets(object):
             realization_no = realization_no + 1
 
     def _write_moles_tags(self, ds, drs):
-        single_values = [BROADER_PROCESSING_LEVEL, DATA_TYPE, ECV,
-                         PROCESSING_LEVEL, PRODUCT_STRING]
-        multi_values = [FREQUENCY, INSTITUTION, PLATFORM, SENSOR]
         if self.__update_moles:
             if self.__verbose >= 2:
                 print('Updating MOLES tags')
-        for value in single_values:
+        for value in self.__single_valued_facets:
             try:
                 self._write_moles_tags_out(ds, drs[value])
             except KeyError:
                 pass
 
-        for value in multi_values:
+        for value in self.__multi_valued_facet_labels.keys():
             try:
                 for uri in drs[value]:
                     self._write_moles_tags_out(ds, uri)

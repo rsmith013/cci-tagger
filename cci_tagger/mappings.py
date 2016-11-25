@@ -30,7 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
 
 from cci_tagger.constants import ECV, FREQUENCY, INSTITUTION, PLATFORM,\
-    SENSOR, PROCESSING_LEVEL
+    SENSOR, PROCESSING_LEVEL, PRODUCT_VERSION
 
 
 class LocalVocabMappings(object):
@@ -106,6 +106,10 @@ class LocalVocabMappings(object):
         'SMR_544.6GHz': 'SMR',
     }
 
+    __version = {
+        '03.02.': '03.02',
+    }
+
     __merged_attr = {
         'AVHRR(NOAA-15,NOAA-16,NOAA-17,NOAA-18),MODIS(Aqua,Terra),'
         'AATSR(ENVISAT)':
@@ -130,6 +134,7 @@ class LocalVocabMappings(object):
     __mappings[PROCESSING_LEVEL] = __level
     __mappings[PLATFORM] = __platform
     __mappings[SENSOR] = __sensor
+    __mappings[PRODUCT_VERSION] = __version
 
     @classmethod
     def __str__(cls):

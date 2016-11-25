@@ -151,6 +151,19 @@ class Facets(object):
             if proc_level_uri != '':
                 self.__proc_level_mappings[proc_level] = proc_level_uri
 
+    def get_facet_names(self):
+        """
+        Get the list of facet names.
+
+        @return  a list of str containing facet names
+
+        """
+        facet_names = []
+        for key in self.__facets.keys():
+            if not key.endswith('-alt'):
+                facet_names.append(key)
+        return facet_names
+
     def get_alt_labels(self, facet):
         """
         Get the facet alternative labels and uirs.

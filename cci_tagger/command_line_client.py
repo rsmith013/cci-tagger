@@ -80,6 +80,11 @@ class CCITaggerCommandLineClient(object):
             '\n\nDEFAULT_TERMS_FILE'
             '\n  This file should have the format of:'
             '\n    <property name>=<vocabulary term>'
+            "\n\n  When <property name> is 'institution', 'platform', "
+            "'sensor' or "
+            "\n  'time_coverage_resolution' then <vocabulary term> may be a "
+            "comma separated "
+            "\n  list"
             '\n\n  For example:'
             '\n    ecv=soil moisture'
             '\n    processing_level=Level 4'
@@ -110,8 +115,10 @@ class CCITaggerCommandLineClient(object):
                   'a csv file.'))
         parser.add_argument(
             '-t', '--default_terms_file',
-            help=('the name of the file containing a list of default '
-                  'vocabulary terms to associate with a dataset'))
+            help=("the name of the file containing a list of default "
+                  "vocabulary terms to associate with a dataset. Property "
+                  "values for 'institution', 'platform', 'sensor' and "
+                  "'time_coverage_resolution' may be comma separated lists"))
         parser.add_argument(
             '--file_count',
             help='how many .nt files to look at per dataset',

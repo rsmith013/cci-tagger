@@ -17,7 +17,7 @@ source tagger/bin/activate
 Find the [latest release of the code](https://github.com/cedadev/cci-tagger/releases) and install it in the virtual environment, i.e. for version 1.0.1:
 
 ```bash
-pip install https://github.com/cedadev/cci-tagger/archive/v1.0.1.tar.gz
+pip install https://github.com/cedadev/cci-tagger/archive/v1.0.3.tar.gz
 ```
 
 ## Usage
@@ -49,7 +49,8 @@ Arguments:
 
     -t DEFAULT_TERMS_FILE, --default_terms_file DEFAULT_TERMS_FILE
                           the name of the file containing a list of default vocabulary terms to associate with
-                          a dataset
+                          a dataset. Property values for 'institution', 'platform', 'sensor' and 
+                          'time_coverage_resolution' may be comma separated lists.
 
     --file_count FILE_COUNT
                           how many .nt files to look at per dataset
@@ -81,8 +82,11 @@ This file should have the format of:
 <property name>=<vocabulary term>
 ```
 
+When <property name> is 'institution', 'platform', 'sensor' or 'time_coverage_resolution' then <vocabulary term> may be a comma separated list
+
 For example:
 ```bash
 ecv=soil moisture
 processing_level=Level 4
+sensor=modis,airs
 ```
