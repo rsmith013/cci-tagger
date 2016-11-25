@@ -14,7 +14,7 @@ virtualenv tagger
 source tagger/bin/activate
 ```
 
-Find the [latest release of the code](https://github.com/cedadev/cci-tagger/releases) and install it in the virtual environment, i.e. for version 1.0.1:
+Find the [latest release of the code](https://github.com/cedadev/cci-tagger/releases) and install it in the virtual environment, i.e. for version 1.0.3:
 
 ```bash
 pip install https://github.com/cedadev/cci-tagger/archive/v1.0.3.tar.gz
