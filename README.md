@@ -82,7 +82,7 @@ This file should have the format of:
 <property name>=<vocabulary term>
 ```
 
-When <property name> is 'institution', 'platform', 'sensor' or 'time_coverage_resolution' then <vocabulary term> may be a comma separated list
+When `property name` is 'institution', 'platform', 'sensor' or 'time_coverage_resolution' then `vocabulary term` may be a comma separated list
 
 For example:
 ```bash
