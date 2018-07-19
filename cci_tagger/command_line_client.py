@@ -111,7 +111,7 @@ class CCITaggerCommandLineClient(object):
                   'of non compliant terms to allowed terms.'))
         parser.add_argument(
             '-u', '--update_moles', action='store_true',
-            help=('update the MOLES catalogue directly rather than produce '
+            help=('update the MOLEs catalogue directly rather than produce '
                   'a csv file.'))
         parser.add_argument(
             '-t', '--default_terms_file',

@@ -2,8 +2,8 @@
 
 ## Overview
 
-This package provides two command line tools moles_esgf_tag to generate dataset
-tags for both MOLES and ESGF and moles_esgf_tag_update to update the MOLES catalogue.
+This package provides a command line tool moles_esgf_tag to generate dataset
+tags for both MOLES and ESGF.
 
 ## Installation
 
@@ -20,9 +20,7 @@ Find the [latest release of the code](https://github.com/cedadev/cci-tagger/rele
 pip install https://github.com/cedadev/cci-tagger/archive/v1.0.3.tar.gz
 ```
 
-## moles_esgf_tag
-
-### Usage
+## Usage
 
 ```
 moles_esgf_tag [-h] (-d DATASET | -f FILE | -s) [-m] [-u] [--file_count FILE_COUNT] [-t DEFAULT_TERMS_FILE]
@@ -47,7 +45,7 @@ Arguments:
     -m, --use_mappings    use the local vocabulary mappings. This will map a number of non compliant terms to
                           allowed terms.
 
-    -u, --update_moles    update the MOLES catalogue directly rather than produce a csv file.
+    -u, --update_moles    update the MOLEs catalogue directly rather than produce a csv file.
 
     -t DEFAULT_TERMS_FILE, --default_terms_file DEFAULT_TERMS_FILE
                           the name of the file containing a list of default vocabulary terms to associate with
@@ -62,7 +60,7 @@ Arguments:
     -v, --verbose         increase output verbosity
 
 
-### Output
+## Output
 
 A number of files are produced as output:
 *  __esgf_drs.json__ contains a list of DRS and associated files and check sums
@@ -70,7 +68,7 @@ A number of files are produced as output:
 *  __moles_esgf_mapping.csv__ contains mappings between dataset paths and DRS
 *  __error.txt__ contains a list of errors
 
-### Examples
+## Examples
 
 ```bash
 moles_esgf_tag -d /neodc/esacci/cloud/data/L3C/avhrr_noaa-16 -v
@@ -78,7 +76,7 @@ moles_esgf_tag -f datapath --file_count 2 --no_check_sum -m -v
 moles_esgf_tag -s
 ```
 
-### DEFAULT\_TERMS\_FILE
+## DEFAULT\_TERMS\_FILE
 This file should have the format of:
 ```bash
 <property name>=<vocabulary term>
@@ -92,19 +90,3 @@ ecv=soil moisture
 processing_level=Level 4
 sensor=modis,airs
 ```
-
-## moles_esgf_tag_update
-
-### Usage
-
-```
-moles_esgf_tag_update [-h] [-d] [-k] [-v]
-```
-
-### Inputs
-
-This CLI uses the output file from moles_esgf_tag to update MOLES:
-*  __moles_tags.csv__ contains a list of dataset paths and vocabulary URLs
-*  __moles_esgf_mapping.csv__ contains mappings between dataset paths and DRS
-
-

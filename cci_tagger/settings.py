@@ -30,7 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
 
 
-SPARQL_HOST_NAME = 'vocab.ceda.ac.uk'
+SPARQL_HOST_NAME = 'vocab-test.ceda.ac.uk'
 
 ESGF_DRS_FILE = 'esgf_drs.json'
 MOLES_TAGS_FILE = 'moles_tags.csv'
