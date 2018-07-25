@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from cci_tagger.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM,\
     SENSOR, ECV, PLATFORM_PROGRAMME, PLATFORM_GROUP, PROCESSING_LEVEL,\
     PRODUCT_STRING
+from cci_tagger.settings import SPARQL_HOST_NAME
 from cci_tagger.triple_store import TripleStore
 
 
@@ -66,59 +67,66 @@ class Facets(object):
             self._init_proc_level_mappings()
 
     def _init_facets(self):
+        vocab_url = 'http://{}/scheme/cci'.format(SPARQL_HOST_NAME)
         self.__facets = {}
         self.__facets[DATA_TYPE] = TripleStore.get_concepts_in_scheme(
-            'http://vocab-test.ceda.ac.uk/scheme/cci/dataType')
+            '{}/dataType'.format(vocab_url))
         self.__facets[DATA_TYPE + '-alt'] = (
             TripleStore.get_alt_concepts_in_scheme(
-                'http://vocab-test.ceda.ac.uk/scheme/cci/dataType'))
+                '{}/dataType'.format(vocab_url)))
         self.__facets[ECV] = TripleStore.get_concepts_in_scheme(
-            'http://vocab-test.ceda.ac.uk/scheme/cci/ecv')
+            '{}/ecv'.format(vocab_url))
         self.__facets[ECV + '-alt'] = TripleStore.get_alt_concepts_in_scheme(
-            'http://vocab-test.ceda.ac.uk/scheme/cci/ecv')
+            '{}/ecv'.format(vocab_url))
         self.__facets[FREQUENCY] = (
             TripleStore.get_concepts_in_scheme(
-                'http://vocab-test.ceda.ac.uk/scheme/cci/freq'))
+                '{}/freq'.format(vocab_url)))
         self.__facets[FREQUENCY + '-alt'] = (
             TripleStore.get_alt_concepts_in_scheme(
-                'http://vocab-test.ceda.ac.uk/scheme/cci/freq'))
+                '{}/freq'.format(vocab_url)))
         self.__facets[PLATFORM] = TripleStore.get_concepts_in_scheme(
-            'http://vocab-test.ceda.ac.uk/scheme/cci/platform')
+            '{}/platform'.format(vocab_url))
         self.__facets[PLATFORM + '-alt'] = (
             TripleStore.get_alt_concepts_in_scheme(
-                'http://vocab-test.ceda.ac.uk/scheme/cci/platform'))
+                '{}/platform'.format(vocab_url)))
         self.__facets[PLATFORM_PROGRAMME] = (
             TripleStore.get_concepts_in_scheme(
-                'http://vocab-test.ceda.ac.uk/scheme/cci/platformProg'))
+                '{}/platformProg'.format(vocab_url)))
         self.__facets[PLATFORM_PROGRAMME + '-alt'] = (
             TripleStore.get_alt_concepts_in_scheme(
-                'http://vocab-test.ceda.ac.uk/scheme/cci/platformProg'))
+                '{}/platformProg'.format(vocab_url)))
         self.__facets[PLATFORM_GROUP] = TripleStore.get_concepts_in_scheme(
-            'http://vocab-test.ceda.ac.uk/scheme/cci/platformGrp')
+            '{}/platformGrp'.format(vocab_url))
         self.__facets[PLATFORM_GROUP + '-alt'] = (
             TripleStore.get_alt_concepts_in_scheme(
-                'http://vocab-test.ceda.ac.uk/scheme/cci/platformGrp'))
+                '{}/platformGrp'.format(vocab_url)))
         self.__facets[PROCESSING_LEVEL] = (
             TripleStore.get_concepts_in_scheme(
-                'http://vocab-test.ceda.ac.uk/scheme/cci/procLev'))
+                '{}/procLev'.format(vocab_url)))
         self.__facets[PROCESSING_LEVEL + '-alt'] = (
             TripleStore.get_alt_concepts_in_scheme(
-                'http://vocab-test.ceda.ac.uk/scheme/cci/procLev'))
+                '{}/procLev'.format(vocab_url)))
         self.__facets[SENSOR] = TripleStore.get_concepts_in_scheme(
-            'http://vocab-test.ceda.ac.uk/scheme/cci/sensor')
+            '{}/sensor'.format(vocab_url))
+        self.__facets[SENSOR].update(
+            TripleStore.get_nerc_concepts_in_scheme(
+                '{}/sensor'.format(vocab_url)))
         self.__facets[SENSOR + '-alt'] = (
             TripleStore.get_alt_concepts_in_scheme(
-                'http://vocab-test.ceda.ac.uk/scheme/cci/sensor'))
+                '{}/sensor'.format(vocab_url)))
+        self.__facets[SENSOR + '-alt'].update(
+            TripleStore.get_nerc_alt_concepts_in_scheme(
+                '{}/sensor'.format(vocab_url)))
         self.__facets[INSTITUTION] = TripleStore.get_concepts_in_scheme(
-            'http://vocab-test.ceda.ac.uk/scheme/cci/org')
+            '{}/org'.format(vocab_url))
         self.__facets[INSTITUTION + '-alt'] = (
             TripleStore.get_alt_concepts_in_scheme(
-                'http://vocab-test.ceda.ac.uk/scheme/cci/org'))
+                '{}/org'.format(vocab_url)))
         self.__facets[PRODUCT_STRING] = TripleStore.get_concepts_in_scheme(
-            'http://vocab-test.ceda.ac.uk/scheme/cci/product')
+            '{}/product'.format(vocab_url))
         self.__facets[PRODUCT_STRING + '-alt'] = (
             TripleStore.get_alt_concepts_in_scheme(
-                'http://vocab-test.ceda.ac.uk/scheme/cci/product'))
+                '{}/product'.format(vocab_url)))
 
     def _init_platform_mappings(self):
         """

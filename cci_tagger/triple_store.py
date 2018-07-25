@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 '''
 
-from rdflib import ConjunctiveGraph
+from rdflib import ConjunctiveGraph, Graph
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
 
 from cci_tagger.settings import SPARQL_HOST_NAME
@@ -91,6 +91,32 @@ class TripleStoreMC(type):
         return concepts
 
     @classmethod
+    def get_nerc_concepts_in_scheme(cls, uri):
+        """
+        Get the preferred labels of all of the concepts for the given concept
+        scheme where the actual concepts are hosted by NERC.
+
+        @param uri (str): the uri of the concept scheme
+
+        @return a dict where:\n
+                key = lower case version of the concepts alternative label\n
+                value = uri of the concept
+
+        """
+        graph = TripleStore._graph
+        statement = (
+            '%s SELECT ?concept WHERE { GRAPH ?g {?concept skos:inScheme <%s> '
+            'FILTER regex(str(?concept), "^http://vocab.nerc.ac.uk", "i")}}' %
+            (cls.__prefix, uri))
+        result_set = graph.query(statement)
+        concepts = {}
+        for result in result_set:
+            uri = result.concept.decode()
+            label = ("" + cls._get_nerc_pref_label(uri)).lower()
+            concepts[label] = uri
+        return concepts
+
+    @classmethod
     def get_alt_concepts_in_scheme(cls, uri):
         """
         Get the alternative labels of all of the concepts for the given concept
@@ -114,6 +140,32 @@ class TripleStoreMC(type):
         return concepts
 
     @classmethod
+    def get_nerc_alt_concepts_in_scheme(cls, uri):
+        """
+        Get the alternative labels of all of the concepts for the given concept
+        scheme where the actual concepts are hosted by NERC.
+
+        @param uri (str): the uri of the concept scheme
+
+        @return a dict where:\n
+                key = lower case version of the concepts alternative label\n
+                value = uri of the concept
+
+        """
+        graph = TripleStore._graph
+        statement = (
+            '%s SELECT ?concept WHERE { GRAPH ?g {?concept skos:inScheme <%s> '
+            'FILTER regex(str(?concept), "^http://vocab.nerc.ac.uk", "i")}}' %
+            (cls.__prefix, uri))
+        result_set = graph.query(statement)
+        concepts = {}
+        for result in result_set:
+            uri = result.concept.decode()
+            label = ("" + cls._get_nerc_alt_label(uri)).lower()
+            concepts[label] = uri
+        return concepts
+
+    @classmethod
     def get_pref_label(cls, uri):
         """
         Get the preferred label for the concept with the given uri.
@@ -126,6 +178,14 @@ class TripleStoreMC(type):
         # check for cached value
         if cls.__pref_label_cache.get(uri) is not None:
             return cls.__pref_label_cache.get(uri)
+
+        if 'vocab.nerc' in uri:
+            return cls._get_nerc_pref_label(uri)
+        else:
+            return cls._get_ceda_pref_label(uri)
+
+    @classmethod
+    def _get_ceda_pref_label(cls, uri):
         graph = TripleStore._graph
         statement = ('%s SELECT ?label WHERE { GRAPH ?g {<%s> skos:prefLabel '
                      '?label} }' % (cls.__prefix, uri))
@@ -134,6 +194,22 @@ class TripleStoreMC(type):
         for resource in results:
             cls.__pref_label_cache[uri] = resource.label.decode()
             return resource.label.decode()
+        cls.__pref_label_cache[uri] = ''
+        return ''
+
+    @classmethod
+    def _get_nerc_pref_label(cls, uri):
+        graph = Graph()
+        graph.parse(location=uri, format='application/rdf+xml')
+        statement = ('%s SELECT ?label WHERE {<%s> skos:altLabel ?label}' %
+                     (cls.__prefix, uri))
+        results = graph.query(statement)
+
+        # there should only be one result
+        for resource in results:
+            label = resource.label.strip().replace(u'\xa0', u' ').decode()
+            cls.__pref_label_cache[uri] = label
+            return label
         cls.__pref_label_cache[uri] = ''
         return ''
 
@@ -151,6 +227,13 @@ class TripleStoreMC(type):
         if cls.__alt_label_cache.get(uri) is not None:
             return cls.__alt_label_cache.get(uri)
 
+        if 'vocab.nerc' in uri:
+            return cls._get_nerc_alt_label(uri)
+        else:
+            return cls._get_ceda_alt_label(uri)
+
+    @classmethod
+    def _get_ceda_alt_label(cls, uri):
         graph = TripleStore._graph
         statement = ('%s SELECT ?label WHERE { GRAPH ?g {<%s> skos:altLabel '
                      '?label} }' % (cls.__prefix, uri))
@@ -159,6 +242,22 @@ class TripleStoreMC(type):
         for resource in results:
             cls.__alt_label_cache[uri] = resource.label.decode()
             return resource.label.decode()
+        cls.__alt_label_cache[uri] = ''
+        return ''
+
+    @classmethod
+    def _get_nerc_alt_label(cls, uri):
+        graph = Graph()
+        graph.parse(location=uri, format='application/rdf+xml')
+        statement = ('%s SELECT ?label WHERE {<%s> skos:prefLabel ?label}' %
+                     (cls.__prefix, uri))
+        results = graph.query(statement)
+
+        # there should only be one result
+        for resource in results:
+            label = resource.label.strip().replace(u'\xa0', u' ').decode()
+            cls.__alt_label_cache[uri] = label
+            return label
         cls.__alt_label_cache[uri] = ''
         return ''
 

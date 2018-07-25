@@ -44,5 +44,4 @@ PRODUCT_VERSION = 'product_version'
 SENSOR = 'sensor'
 
 # Level 2 data is mapped to satellite orbit frequency
-LEVEL_2_FREQUENCY = ('http://vocab-test.ceda.ac.uk/collection/cci/freq/freq'
-                     '_sat_orb')
+LEVEL_2_FREQUENCY = 'http://vocab.ceda.ac.uk/collection/cci/freq/freq_sat_orb'
