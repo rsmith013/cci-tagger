@@ -209,7 +209,7 @@ class ProcessDatasets(object):
 
         @param datasets (List(str)): a list of dataset names, these are the
         full paths to the datasets
-        @param max_file_count (int): how many .nt files to look at per dataset.
+        @param max_file_count (int): how many .nc files to look at per dataset.
                 If the value is less than 1 then all datasets will be
                 processed.
 
@@ -447,7 +447,8 @@ class ProcessDatasets(object):
                     (ds, path_facet_bits[last_bit]))
             return {}, {}
 
-    def _get_data_from_file_name_1(self, file_segments):
+    @staticmethod
+    def _get_data_from_file_name_1(file_segments):
         """
         Extract data from the file name of form 1.
 
@@ -465,7 +466,8 @@ class ProcessDatasets(object):
         form[PRODUCT_STRING] = file_segments[4]
         return form
 
-    def _get_data_from_file_name_2(self, file_segments):
+    @staticmethod
+    def _get_data_from_file_name_2(file_segments):
         """
         Extract data from the file name of form 2.
 
