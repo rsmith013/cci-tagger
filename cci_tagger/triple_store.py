@@ -286,5 +286,5 @@ class TripleStoreMC(type):
         return ('', '')
 
 
-class TripleStore(with_metaclass(object, TripleStoreMC)):
+class TripleStore(with_metaclass(TripleStoreMC)):
     pass
