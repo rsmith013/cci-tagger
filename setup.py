@@ -49,6 +49,7 @@ setup(
         'SPARQLWrapper==1.7.6',
         'netCDF4',
         'html5lib',
-        'configparser'
+        'configparser',
+        'six'
     ],
 )

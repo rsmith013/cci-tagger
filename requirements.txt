@@ -2,3 +2,4 @@ SPARQLWrapper==1.7.6
 html5lib
 netCDF4
 configparser
+six

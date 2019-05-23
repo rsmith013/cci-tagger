@@ -31,8 +31,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from rdflib import ConjunctiveGraph, Graph
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
+from six import with_metaclass
 
 from cci_tagger.settings import SPARQL_HOST_NAME
+
 
 
 class TripleStoreMC(type):
@@ -284,5 +286,5 @@ class TripleStoreMC(type):
         return ('', '')
 
 
-class TripleStore(object):
-    __metaclass__ = TripleStoreMC
+class TripleStore(with_metaclass(object, TripleStoreMC):
+    pass
