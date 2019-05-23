@@ -28,7 +28,8 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 '''
-import ConfigParser
+
+import configparser
 
 
 # Name of fake section to create
@@ -37,7 +38,7 @@ SECTION_NAME = 'asection'
 
 class _FakeSecHead(object):
     """
-    Create a fake header for the properties file so we can use ConfigParser.
+    Create a fake header for the properties file so we can use configparser.
 
     """
 
@@ -68,8 +69,8 @@ class Properties(object):
         @param file_path(str): the name and path of the properties file.
 
         """
-        self.cp = ConfigParser.SafeConfigParser()
-        self.cp.readfp(_FakeSecHead(open(file_path)))
+        self.cp = configparser.ConfigParser()
+        self.cp.read_file(_FakeSecHead(open(file_path)))
 
     def properties(self):
         """
