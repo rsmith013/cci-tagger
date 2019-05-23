@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from rdflib import ConjunctiveGraph, Graph
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
 from six import with_metaclass
+from builtins import str
 
 from cci_tagger.settings import SPARQL_HOST_NAME
 
@@ -89,7 +90,7 @@ class TripleStoreMC(type):
         result_set = graph.query(statement)
         concepts = {}
         for result in result_set:
-            concepts[("" + result.label).lower()] = result.concept.decode()
+            concepts[("" + result.label).lower()] = str(result.concept)
         return concepts
 
     @classmethod
@@ -113,7 +114,7 @@ class TripleStoreMC(type):
         result_set = graph.query(statement)
         concepts = {}
         for result in result_set:
-            uri = result.concept.decode()
+            uri = str(result.concept)
             label = ("" + cls._get_nerc_pref_label(uri)).lower()
             concepts[label] = uri
         return concepts
@@ -138,7 +139,7 @@ class TripleStoreMC(type):
         result_set = graph.query(statement)
         concepts = {}
         for result in result_set:
-            concepts[("" + result.label).lower()] = result.concept.decode()
+            concepts[("" + result.label).lower()] = str(result.concept)
         return concepts
 
     @classmethod
@@ -162,7 +163,7 @@ class TripleStoreMC(type):
         result_set = graph.query(statement)
         concepts = {}
         for result in result_set:
-            uri = result.concept.decode()
+            uri = str(result.concept)
             label = ("" + cls._get_nerc_alt_label(uri)).lower()
             concepts[label] = uri
         return concepts
@@ -194,8 +195,8 @@ class TripleStoreMC(type):
         results = graph.query(statement)
         # there should only be one result
         for resource in results:
-            cls.__pref_label_cache[uri] = resource.label.decode()
-            return resource.label.decode()
+            cls.__pref_label_cache[uri] = str(resource.label)
+            return str(resource.label)
         cls.__pref_label_cache[uri] = ''
         return ''
 
@@ -209,7 +210,7 @@ class TripleStoreMC(type):
 
         # there should only be one result
         for resource in results:
-            label = resource.label.strip().replace(u'\xa0', u' ').decode()
+            label = str(resource.label.strip().replace(u'\xa0', u' '))
             cls.__pref_label_cache[uri] = label
             return label
         cls.__pref_label_cache[uri] = ''
@@ -242,8 +243,8 @@ class TripleStoreMC(type):
         results = graph.query(statement)
         # there should only be one result
         for resource in results:
-            cls.__alt_label_cache[uri] = resource.label.decode()
-            return resource.label.decode()
+            cls.__alt_label_cache[uri] = str(resource.label)
+            return str(resource.label)
         cls.__alt_label_cache[uri] = ''
         return ''
 
@@ -257,7 +258,7 @@ class TripleStoreMC(type):
 
         # there should only be one result
         for resource in results:
-            label = resource.label.strip().replace(u'\xa0', u' ').decode()
+            label = str(resource.label.strip().replace(u'\xa0', u' '))
             cls.__alt_label_cache[uri] = label
             return label
         cls.__alt_label_cache[uri] = ''
@@ -282,8 +283,8 @@ class TripleStoreMC(type):
         results = graph.query(statement)
         # there should only be one result
         for resource in results:
-            return (resource.label.decode(), resource.concept.decode())
-        return ('', '')
+            return str(resource.label), str(resource.concept)
+        return '', ''
 
 
 class TripleStore(with_metaclass(TripleStoreMC)):

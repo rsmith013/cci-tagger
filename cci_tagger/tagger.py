@@ -116,7 +116,8 @@ class ProcessDatasets(object):
     }
 
     def __init__(self, checksum=True, use_mapping=True, verbose=0,
-                 update_moles=False, default_terms_file=None):
+                 update_moles=False, default_terms_file=None,
+                 suppress_file_output=False):
         """
         Initialise the ProcessDatasets class.
 
@@ -130,6 +131,7 @@ class ProcessDatasets(object):
         self.__use_mapping = use_mapping
         self.__verbose = verbose
         self.__update_moles = update_moles
+        self.__suppress_fo = suppress_file_output
         if self.__update_moles:
             try:
                 from tools.vocab_tools.tag_obs_with_vocab_terms import \
@@ -824,8 +826,13 @@ class ProcessDatasets(object):
                 pass
 
     def _write_moles_tags_out(self, ds, uri):
+
         if self.__update_moles:
             self._tag_observation(ds, uri, 'clipc_skos_vocab')
+
+        elif self.__suppress_fo:
+            return
+
         else:
             self.__file_csv.write('{ds},{uri}\n'.format(ds=ds, uri=uri))
 
@@ -849,6 +856,9 @@ class ProcessDatasets(object):
                     directory=directory, drs_id=drs_id, version=version))
 
     def _write_json(self, drs):
+        if self.__suppress_fo:
+            return
+
         self.__file_drs.write(
             json.dumps(drs, sort_keys=True, indent=4, separators=(',', ': ')))
 
@@ -868,11 +878,18 @@ class ProcessDatasets(object):
         return term
 
     def _open_files(self, ):
+        # Do not open files if suppress output is true
+        if self.__suppress_fo:
+            return
+
         if not self.__update_moles:
             self.__file_csv = open(MOLES_TAGS_FILE, 'w')
         self.__file_drs = open(ESGF_DRS_FILE, 'w')
 
     def _close_files(self, ):
+        if self.__suppress_fo:
+            return
+
         if not self.__update_moles:
             self.__file_csv.close()
         self.__file_drs.close()
