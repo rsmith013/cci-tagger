@@ -178,6 +178,10 @@ class TripleStoreMC(type):
         @return a str containing the preferred label
 
         """
+        # Check for none value of uri
+        if uri is None:
+            return ''
+
         # check for cached value
         if cls.__pref_label_cache.get(uri) is not None:
             return cls.__pref_label_cache.get(uri)
@@ -226,6 +230,10 @@ class TripleStoreMC(type):
         @return a str containing the alternative label
 
         """
+        # Check for none value of uri
+        if uri is None:
+            return ''
+
         # check for cached value
         if cls.__alt_label_cache.get(uri) is not None:
             return cls.__alt_label_cache.get(uri)
