@@ -33,10 +33,13 @@ from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 from datetime import datetime
 import sys
+import os
 import time
 
 from cci_tagger.mappings import LocalVocabMappings
 from cci_tagger.tagger import ProcessDatasets
+
+from cci_tagger.facets import Facets
 
 
 def get_datasets_from_file(file_name):
@@ -104,6 +107,11 @@ class CCITaggerCommandLineClient(object):
         group.add_argument(
             '-s', '--show_mappings', action='store_true',
             help='show the local vocabulary mappings')
+        group.add_argument(
+            '-e', '--export', help=(
+                'path to directory to place the exported vocabularies'
+            ), default=None
+        )
 
         parser.add_argument(
             '-m', '--use_mappings', action='store_true',
@@ -144,6 +152,9 @@ class CCITaggerCommandLineClient(object):
             datasets = get_datasets_from_file(args.file)
         elif args.show_mappings:
             print(LocalVocabMappings())
+        elif args.export:
+            outfile = os.path.join(args.export,'vocab_export.json')
+            Facets().export_mappings(outfile)
 
         return datasets, args
 

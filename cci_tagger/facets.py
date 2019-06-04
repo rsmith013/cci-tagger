@@ -29,8 +29,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 '''
 
-from cci_tagger.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM,\
-    SENSOR, ECV, PLATFORM_PROGRAMME, PLATFORM_GROUP, PROCESSING_LEVEL,\
+from cci_tagger.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM, \
+    SENSOR, ECV, PLATFORM_PROGRAMME, PLATFORM_GROUP, PROCESSING_LEVEL, \
     PRODUCT_STRING
 from cci_tagger.settings import SPARQL_HOST_NAME
 from cci_tagger.triple_store import TripleStore
@@ -54,11 +54,14 @@ class Facets(object):
     # mapping for process levels
     __proc_level_mappings = None
 
-    def __init__(self):
+    def __init__(self, filepath=None):
         """
         Initialise the Facets class.
 
         """
+        if filepath is not None:
+            self._init_from_file(filepath)
+
         if self.__facets is None:
             self._init_facets()
         if self.__platform_programme_mappings is None:
@@ -159,6 +162,32 @@ class Facets(object):
             if proc_level_uri != '':
                 self.__proc_level_mappings[proc_level] = proc_level_uri
 
+    def _init_from_file(self, path):
+        import json
+
+        with open(path) as input:
+            data = json.load(input)
+
+        self.__facets = data.get('_Facets__facets')
+        self.__platform_programme_mappings = data.get('_Facets__platform_programme_mappings')
+        self.__programme_group_mappings = data.get('_Facets__programme_group_mappings')
+        self.__proc_level_mappings = data.get('_Facets__proc_level_mappings')
+
+    def _serialize(self):
+
+        return self.__dict__
+
+    def export_mappings(self, path):
+        """
+        Export the facet, platform and proc_level_mappings to disk
+
+        :param path: Output directory
+        """
+        import json
+
+        with open(path, 'w') as output:
+            json.dump(self._serialize(), output)
+
     def get_facet_names(self):
         """
         Get the list of facet names.
@@ -252,3 +281,4 @@ class Facets(object):
 
         """
         return self.__proc_level_mappings.get(uri)
+

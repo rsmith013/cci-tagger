@@ -117,7 +117,7 @@ class ProcessDatasets(object):
 
     def __init__(self, checksum=True, use_mapping=True, verbose=0,
                  update_moles=False, default_terms_file=None,
-                 suppress_file_output=False):
+                 suppress_file_output=False, **kwargs):
         """
         Initialise the ProcessDatasets class.
 
@@ -142,7 +142,10 @@ class ProcessDatasets(object):
                       'but we cannot find the MOLES library')
                 exit(1)
         if self.__facets is None:
-            self.__facets = Facets()
+            if 'filepath' in kwargs:
+                self.__facets = Facets(filepath=kwargs['filepath'])
+            else:
+                self.__facets = Facets()
         self.__file_drs = None
         self.__file_csv = None
         self._open_files()
