@@ -877,7 +877,7 @@ class ProcessDatasets(object):
         return None
 
     def _convert_term(self, facet, term):
-        term = term.lower()
+        term = str(term).lower()
         if self.__use_mapping:
             return LocalVocabMappings.get_mapping(facet, term)
         return term
