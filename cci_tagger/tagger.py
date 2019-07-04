@@ -547,7 +547,13 @@ class ProcessDatasets(object):
             csv_rec.get(PROCESSING_LEVEL))
         project_label = TripleStore.get_alt_label(csv_rec.get(ECV))
         data_type_label = TripleStore.get_alt_label(csv_rec.get(DATA_TYPE))
-        product_label = TripleStore.get_pref_label(csv_rec.get(PRODUCT_STRING))
+        print(csv_rec)
+        print(PRODUCT_STRING)
+        print(csv_rec.get(PRODUCT_STRING))
+        if csv_rec.get(PRODUCT_STRING) is not None:
+            product_label = TripleStore.get_pref_label(csv_rec.get(PRODUCT_STRING))
+        else:
+            product_label = ''
         drs = {}
         if project_label != '':
             drs[ECV] = project_label
