@@ -87,7 +87,7 @@ class TripleStoreMC(type):
         result_set = graph.query(statement)
         concepts = {}
         for result in result_set:
-            concepts[("" + result.label).lower()] = result.concept.decode()
+            concepts[("" + result.label).lower()] = result.concept.toPython()
         return concepts
 
     @classmethod
@@ -111,7 +111,7 @@ class TripleStoreMC(type):
         result_set = graph.query(statement)
         concepts = {}
         for result in result_set:
-            uri = result.concept.decode()
+            uri = result.concept.toPython()
             label = ("" + cls._get_nerc_pref_label(uri)).lower()
             concepts[label] = uri
         return concepts
@@ -136,7 +136,7 @@ class TripleStoreMC(type):
         result_set = graph.query(statement)
         concepts = {}
         for result in result_set:
-            concepts[("" + result.label).lower()] = result.concept.decode()
+            concepts[("" + result.label).lower()] = result.concept.toPython()
         return concepts
 
     @classmethod
@@ -160,7 +160,7 @@ class TripleStoreMC(type):
         result_set = graph.query(statement)
         concepts = {}
         for result in result_set:
-            uri = result.concept.decode()
+            uri = result.concept.toPython()
             label = ("" + cls._get_nerc_alt_label(uri)).lower()
             concepts[label] = uri
         return concepts
@@ -192,8 +192,8 @@ class TripleStoreMC(type):
         results = graph.query(statement)
         # there should only be one result
         for resource in results:
-            cls.__pref_label_cache[uri] = resource.label.decode()
-            return resource.label.decode()
+            cls.__pref_label_cache[uri] = resource.label.toPython()
+            return resource.label.toPython()
         cls.__pref_label_cache[uri] = ''
         return ''
 
@@ -207,7 +207,7 @@ class TripleStoreMC(type):
 
         # there should only be one result
         for resource in results:
-            label = resource.label.strip().replace(u'\xa0', u' ').decode()
+            label = resource.label.strip().replace(u'\xa0', u' ').toPython()
             cls.__pref_label_cache[uri] = label
             return label
         cls.__pref_label_cache[uri] = ''
@@ -240,8 +240,8 @@ class TripleStoreMC(type):
         results = graph.query(statement)
         # there should only be one result
         for resource in results:
-            cls.__alt_label_cache[uri] = resource.label.decode()
-            return resource.label.decode()
+            cls.__alt_label_cache[uri] = resource.label.toPython()
+            return resource.label.toPython()
         cls.__alt_label_cache[uri] = ''
         return ''
 
@@ -255,7 +255,7 @@ class TripleStoreMC(type):
 
         # there should only be one result
         for resource in results:
-            label = resource.label.strip().replace(u'\xa0', u' ').decode()
+            label = resource.label.strip().replace(u'\xa0', u' ').toPython()
             cls.__alt_label_cache[uri] = label
             return label
         cls.__alt_label_cache[uri] = ''
@@ -280,7 +280,7 @@ class TripleStoreMC(type):
         results = graph.query(statement)
         # there should only be one result
         for resource in results:
-            return (resource.label.decode(), resource.concept.decode())
+            return (resource.label.toPython(), resource.concept.toPython())
         return ('', '')
 
 
