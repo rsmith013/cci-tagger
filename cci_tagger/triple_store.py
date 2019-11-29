@@ -37,6 +37,19 @@ from builtins import str
 from cci_tagger.settings import SPARQL_HOST_NAME
 
 
+class Concept:
+    """
+    Storage object for concepts to allow
+    the terms to be reveresed and get the
+    correct tag in return.
+    """
+
+    def __init__(self, tag, uri):
+        self.uri = str(uri)
+        self.tag = str(tag)
+
+    def __repr__(self):
+        return self.uri
 
 class TripleStoreMC(type):
     """
@@ -90,7 +103,7 @@ class TripleStoreMC(type):
         result_set = graph.query(statement)
         concepts = {}
         for result in result_set:
-            concepts[("" + result.label).lower()] = str(result.concept)
+            concepts[("" + result.label).lower()] = Concept(result.label, result.concept)
         return concepts
 
     @classmethod
@@ -115,8 +128,8 @@ class TripleStoreMC(type):
         concepts = {}
         for result in result_set:
             uri = str(result.concept)
-            label = ("" + cls._get_nerc_pref_label(uri)).lower()
-            concepts[label] = uri
+            label = str(cls._get_nerc_pref_label(uri))
+            concepts[label.lower()] = Concept(label, uri)
         return concepts
 
     @classmethod
@@ -139,7 +152,7 @@ class TripleStoreMC(type):
         result_set = graph.query(statement)
         concepts = {}
         for result in result_set:
-            concepts[("" + result.label).lower()] = str(result.concept)
+            concepts[("" + result.label).lower()] = Concept(result.label, result.concept)
         return concepts
 
     @classmethod
@@ -164,8 +177,8 @@ class TripleStoreMC(type):
         concepts = {}
         for result in result_set:
             uri = str(result.concept)
-            label = ("" + cls._get_nerc_alt_label(uri)).lower()
-            concepts[label] = uri
+            label = str(cls._get_nerc_pref_label(uri))
+            concepts[label.lower()] = Concept(label, uri)
         return concepts
 
     @classmethod

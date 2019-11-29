@@ -31,7 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from cci_tagger.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM, \
     SENSOR, ECV, PLATFORM_PROGRAMME, PLATFORM_GROUP, PROCESSING_LEVEL, \
-    PRODUCT_STRING
+    PRODUCT_STRING, BROADER_PROCESSING_LEVEL, PRODUCT_VERSION
 from cci_tagger.settings import SPARQL_HOST_NAME
 from cci_tagger.triple_store import TripleStore
 
@@ -42,94 +42,53 @@ class Facets(object):
     the triple store.
 
     """
+
+    # URL for the vocab server
+    VOCAB_URL = f'http://{SPARQL_HOST_NAME}/scheme/cci'
+
+    # All the desired facet endpoints
+    FACET_ENDPOINTS = {
+        DATA_TYPE: f'{VOCAB_URL}/dataType',
+        ECV: f'{VOCAB_URL}/ecv',
+        FREQUENCY: f'{VOCAB_URL}/freq',
+        PLATFORM: f'{VOCAB_URL}/platform',
+        PLATFORM_PROGRAMME: f'{VOCAB_URL}/platformProg',
+        PLATFORM_GROUP: f'{VOCAB_URL}/platformGrp',
+        PROCESSING_LEVEL: f'{VOCAB_URL}/procLev',
+        SENSOR: f'{VOCAB_URL}/sensor',
+        INSTITUTION: f'{VOCAB_URL}/org',
+        PRODUCT_STRING: f'{VOCAB_URL}/product'
+    }
+
     # a dict of concept schemes
-    __facets = None
+    __facets = {}
 
     # mapping from platform uri to platform programme label
-    __platform_programme_mappings = None
+    __platform_programme_mappings = {}
 
     # mapping from platform uri to platform group label
-    __programme_group_mappings = None
+    __programme_group_mappings = {}
 
     # mapping for process levels
-    __proc_level_mappings = None
+    __proc_level_mappings = {}
 
-    def __init__(self, filepath=None):
-        """
-        Initialise the Facets class.
+    # Reversed mapping to allow lookup from uri to tag.
+    __reversible_facets = {}
 
-        """
-        if filepath is not None:
-            self._init_from_file(filepath)
+    def __init__(self):
 
-        if self.__facets is None:
-            self._init_facets()
-        if self.__platform_programme_mappings is None:
-            self._init_platform_mappings()
-        if self.__proc_level_mappings is None:
-            self._init_proc_level_mappings()
+        for facet, uri in self.FACET_ENDPOINTS.items():
+            self._init_concepts(facet, uri)
 
-    def _init_facets(self):
-        vocab_url = 'http://{}/scheme/cci'.format(SPARQL_HOST_NAME)
-        self.__facets = {}
-        self.__facets[DATA_TYPE] = TripleStore.get_concepts_in_scheme(
-            '{}/dataType'.format(vocab_url))
-        self.__facets[DATA_TYPE + '-alt'] = (
-            TripleStore.get_alt_concepts_in_scheme(
-                '{}/dataType'.format(vocab_url)))
-        self.__facets[ECV] = TripleStore.get_concepts_in_scheme(
-            '{}/ecv'.format(vocab_url))
-        self.__facets[ECV + '-alt'] = TripleStore.get_alt_concepts_in_scheme(
-            '{}/ecv'.format(vocab_url))
-        self.__facets[FREQUENCY] = (
-            TripleStore.get_concepts_in_scheme(
-                '{}/freq'.format(vocab_url)))
-        self.__facets[FREQUENCY + '-alt'] = (
-            TripleStore.get_alt_concepts_in_scheme(
-                '{}/freq'.format(vocab_url)))
-        self.__facets[PLATFORM] = TripleStore.get_concepts_in_scheme(
-            '{}/platform'.format(vocab_url))
-        self.__facets[PLATFORM + '-alt'] = (
-            TripleStore.get_alt_concepts_in_scheme(
-                '{}/platform'.format(vocab_url)))
-        self.__facets[PLATFORM_PROGRAMME] = (
-            TripleStore.get_concepts_in_scheme(
-                '{}/platformProg'.format(vocab_url)))
-        self.__facets[PLATFORM_PROGRAMME + '-alt'] = (
-            TripleStore.get_alt_concepts_in_scheme(
-                '{}/platformProg'.format(vocab_url)))
-        self.__facets[PLATFORM_GROUP] = TripleStore.get_concepts_in_scheme(
-            '{}/platformGrp'.format(vocab_url))
-        self.__facets[PLATFORM_GROUP + '-alt'] = (
-            TripleStore.get_alt_concepts_in_scheme(
-                '{}/platformGrp'.format(vocab_url)))
-        self.__facets[PROCESSING_LEVEL] = (
-            TripleStore.get_concepts_in_scheme(
-                '{}/procLev'.format(vocab_url)))
-        self.__facets[PROCESSING_LEVEL + '-alt'] = (
-            TripleStore.get_alt_concepts_in_scheme(
-                '{}/procLev'.format(vocab_url)))
-        self.__facets[SENSOR] = TripleStore.get_concepts_in_scheme(
-            '{}/sensor'.format(vocab_url))
-        self.__facets[SENSOR].update(
-            TripleStore.get_nerc_concepts_in_scheme(
-                '{}/sensor'.format(vocab_url)))
-        self.__facets[SENSOR + '-alt'] = (
-            TripleStore.get_alt_concepts_in_scheme(
-                '{}/sensor'.format(vocab_url)))
-        self.__facets[SENSOR + '-alt'].update(
-            TripleStore.get_nerc_alt_concepts_in_scheme(
-                '{}/sensor'.format(vocab_url)))
-        self.__facets[INSTITUTION] = TripleStore.get_concepts_in_scheme(
-            '{}/org'.format(vocab_url))
-        self.__facets[INSTITUTION + '-alt'] = (
-            TripleStore.get_alt_concepts_in_scheme(
-                '{}/org'.format(vocab_url)))
-        self.__facets[PRODUCT_STRING] = TripleStore.get_concepts_in_scheme(
-            '{}/product'.format(vocab_url))
-        self.__facets[PRODUCT_STRING + '-alt'] = (
-            TripleStore.get_alt_concepts_in_scheme(
-                '{}/product'.format(vocab_url)))
+        self._init_proc_level_mappings()
+        self._init_platform_mappings()
+        self._reverse_facet_mappings()
+
+    def _init_concepts(self, facet, uri):
+
+        self.__facets[facet] = TripleStore.get_concepts_in_scheme(uri)
+        self.__facets[f'{facet}-alt'] = TripleStore.get_alt_concepts_in_scheme(uri)
+
 
     def _init_platform_mappings(self):
         """
@@ -141,10 +100,16 @@ class Facets(object):
         """
         self.__platform_programme_mappings = {}
         self.__programme_group_mappings = {}
+
         for platform in self.__facets[PLATFORM].values():
             program_label, program_uri = TripleStore.get_broader(platform)
+
+            # Get the broader terms for each of the uris in the platform list
             self.__platform_programme_mappings[platform] = program_label
+
+            # Get group labels from the broader platform uri
             group_label, _ = TripleStore.get_broader(program_uri)
+
             if group_label:
                 self.__programme_group_mappings[platform] = group_label
 
@@ -159,34 +124,32 @@ class Facets(object):
         self.__proc_level_mappings = {}
         for proc_level in self.__facets[PROCESSING_LEVEL].values():
             _, proc_level_uri = TripleStore.get_broader(proc_level)
+
             if proc_level_uri != '':
-                self.__proc_level_mappings[proc_level] = proc_level_uri
+                self.__proc_level_mappings[proc_level.uri] = proc_level_uri
 
-    def _init_from_file(self, path):
-        import json
+        self.__facets[BROADER_PROCESSING_LEVEL] = {TripleStore.get_alt_label(uri): uri for uri in
+                                                  self.__proc_level_mappings.values()}
 
-        with open(path) as input:
-            data = json.load(input)
-
-        self.__facets = data.get('_Facets__facets')
-        self.__platform_programme_mappings = data.get('_Facets__platform_programme_mappings')
-        self.__programme_group_mappings = data.get('_Facets__programme_group_mappings')
-        self.__proc_level_mappings = data.get('_Facets__proc_level_mappings')
-
-    def _serialize(self):
-
-        return self.__dict__
-
-    def export_mappings(self, path):
+    def _reverse_facet_mappings(self):
         """
-        Export the facet, platform and proc_level_mappings to disk
-
-        :param path: Output directory
+        Reverse the facet mappings so that it can be given a uri and
+        return the required tag.
+        :return:
         """
-        import json
 
-        with open(path, 'w') as output:
-            json.dump(self._serialize(), output)
+        # Reverse main facets
+        for facet in self.__facets:
+
+            reversed = {}
+
+            for k,v in self.__facets[facet].items():
+                if isinstance(v, str):
+                    reversed[v] = k
+                else:
+                    reversed[v.uri] = v.tag
+
+            self.__reversible_facets[facet] = reversed
 
     def get_facet_names(self):
         """
@@ -212,7 +175,7 @@ class Facets(object):
             value = uri of the concept
 
         """
-        return self.__facets['{}-alt'.format(facet)]
+        return self.__facets[f'{facet}-alt']
 
     def get_labels(self, facet):
         """
@@ -237,7 +200,7 @@ class Facets(object):
                 platform
 
         """
-        return self.__platform_programme_mappings[uri]
+        return self.__platform_programme_mappings.get(uri)
 
     def get_programme_labels(self):
         """
@@ -259,7 +222,7 @@ class Facets(object):
                 programme
 
         """
-        return self.__programme_group_mappings[uri]
+        return self.__programme_group_mappings.get(uri)
 
     def get_group_labels(self):
         """
@@ -281,4 +244,106 @@ class Facets(object):
 
         """
         return self.__proc_level_mappings.get(uri)
+
+    def get_label_from_uri(self, facet, uri):
+        """
+        Mappings between facets and label getter
+        BROADER_PROCESSING_LEVEL: pref,
+        DATA_TYPE: alt,
+        ECV: alt,
+        FREQUENCY: pref,
+        INSTITUTION: pref,
+        PLATFORM: pref (made up of PLATFORM_PROGRAMME and PLATFORM_GROUP),
+        PLATFORM_PROGRAMME: pref,
+        PLATFORM_GROUP: pref,
+        PROCESSING_LEVEL: alt,
+        PRODUCT_STRING: pref,
+        PRODUCT_VERSION: None,
+        SENSOR: pref
+
+        :param facet:
+        :param uri:
+        :return:
+        """
+
+        label_source = {
+            BROADER_PROCESSING_LEVEL: self._get_pref_label,
+            DATA_TYPE: self._get_alt_label,
+            ECV: self._get_alt_label,
+            FREQUENCY: self._get_pref_label,
+            INSTITUTION: self._get_pref_label,
+            PLATFORM: self._get_platform_label,
+            PLATFORM_PROGRAMME: self._get_pref_label,
+            PLATFORM_GROUP: self._get_pref_label,
+            PROCESSING_LEVEL: self._get_alt_label,
+            PRODUCT_STRING: self._get_pref_label,
+            PRODUCT_VERSION: None,
+            SENSOR: self._get_pref_label
+        }
+
+        label_routing_func = label_source.get(facet)
+
+        if label_routing_func:
+            return label_routing_func(facet, uri)
+
+        return uri
+
+    def _get_pref_label(self, facet, uri):
+        """
+        Get the preferred label for the given facet and uri
+        :param facet:
+        :param uri:
+        :return:
+        """
+        return self.__reversible_facets[facet].get(uri)
+
+    def _get_alt_label(self, facet, uri):
+        """
+        Get the alt label for the given facet and uri
+        :param facet:
+        :param uri:
+        :return:
+        """
+        return self.__reversible_facets[f'{facet}-alt'].get(uri)
+
+    def _get_platform_label(self, facet, uri):
+        """
+        The platform uris are made up of three facets. Try each
+        one to see if there is a match
+        :param facet: unused
+        :param uri:
+        :return: label
+        """
+
+        for facet in [PLATFORM, PLATFORM_GROUP, PLATFORM_PROGRAMME]:
+            label = self.__reversible_facets[facet].get(uri)
+
+            if label:
+                return label
+
+        return uri
+
+    def process_bag(self, bag):
+        """
+        Take a dictionary of facets with uris or strings and turn it into tags
+        :param bag: dictionary of facets with lists of uris to convert
+        :return: dictionary of facets with the extracted tags
+        """
+        output = {}
+
+        for facet in bag:
+            if isinstance(bag[facet],str):
+                uri = bag[facet]
+
+                # Filter out None values
+                output[facet] = list(
+                    filter(None, [self.get_label_from_uri(facet, uri)])
+                )
+            else:
+                # Filter out None values
+                output[facet] = list(
+                    filter(None, [self.get_label_from_uri(facet, uri) for uri in bag[facet]])
+                )
+
+        return output
 

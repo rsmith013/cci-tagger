@@ -33,6 +33,7 @@ import hashlib
 import json
 import os
 from time import strftime
+import re
 
 import netCDF4
 
@@ -141,11 +142,8 @@ class ProcessDatasets(object):
                 print('Oops. Looks like you have selected to write to MOLES '
                       'but we cannot find the MOLES library')
                 exit(1)
-        if self.__facets is None:
-            if 'filepath' in kwargs:
-                self.__facets = Facets(filepath=kwargs['filepath'])
-            else:
-                self.__facets = Facets()
+
+        self.__facets = Facets()
         self.__file_drs = None
         self.__file_csv = None
         self._open_files()
@@ -205,7 +203,7 @@ class ProcessDatasets(object):
             exit(1)
         return True
 
-    def process_datasets(self, datasets, max_file_count):
+    def process_datasets(self, datasets, max_file_count=0):
         """
         Loop through the datasets pulling out data from file names and from
         within net cdf files.
@@ -246,6 +244,32 @@ class ProcessDatasets(object):
 
         self._close_files()
 
+    def get_tags_as_labels(self, filename):
+
+        drs_facets = {}
+        tags_ds = {}
+
+        # Get facets from filename
+        net_cdf_drs, net_cdf_tags = self._parse_file_name(
+            ds, fpath)
+
+        # Update tags
+        drs_facets.update(net_cdf_drs)
+        tags_ds.update(net_cdf_tags)
+
+        # Get facets from metadata
+        net_cdf_drs, net_cdf_tags = self._scan_net_cdf_file(
+            fpath, ds, net_cdf_tags.get(PROCESSING_LEVEL))
+
+        # Update tags
+        drs_facets.update(net_cdf_drs)
+        tags_ds.update(net_cdf_tags)
+
+        # Turn uris into human readable tags
+        tags = self.__facets.process_bag(tags_ds)
+
+        return tags
+
     def _process_dataset(self, ds, count, drs, max_file_count):
         """
         Pull out data from file names and from within net cdf files.
@@ -284,60 +308,78 @@ class ProcessDatasets(object):
             # the terms to be used to generate the DRS
             drs_facets = dict(self.__user_assigned_defaults)
 
-            net_cdf_drs, net_cdf_tags = self._parse_file_name(
-                ds, fpath)
+            # Get tags from filename
+            net_cdf_drs, net_cdf_tags = self._parse_file_name(ds, fpath)
+
+            # Update tags
             drs_facets.update(net_cdf_drs)
             tags_ds.update(net_cdf_tags)
+
+            # Get tags from file metadata
             net_cdf_drs, net_cdf_tags = self._scan_net_cdf_file(
                 fpath, ds, net_cdf_tags.get(PROCESSING_LEVEL))
+
+            # Update tags
             drs_facets.update(net_cdf_drs)
             tags_ds.update(net_cdf_tags)
 
             dataset_id = self._generate_ds_id(ds, drs_facets)
+
             # only add files with all of the drs data
             if dataset_id is None or drs_facets.get('error'):
                 continue
 
-            if dataset_id not in current_drs_ids.keys():
+            if dataset_id not in current_drs_ids:
                 current_drs_ids[dataset_id] = self._get_next_realization(
                     ds, dataset_id, drs)
-                dataset_id = '%s.%s' % (dataset_id,
-                                        current_drs_ids[dataset_id])
+
+                dataset_id = f'{dataset_id}.{current_drs_ids[dataset_id]}'
+
                 self.__ds_drs_mapping.add((ds, dataset_id, self.__drs_version))
-                dataset_id = '%s.%s' % (dataset_id, self.__drs_version)
+                dataset_id = f'{dataset_id}.{self.__drs_version}'
+
             else:
-                dataset_id = '%s.%s.%s' % (
-                    dataset_id, current_drs_ids[dataset_id],
-                    self.__drs_version)
+                dataset_id = f'{dataset_id}.{current_drs_ids[dataset_id]}.{self.__drs_version}'
 
             if self.__checksum:
                 sha256 = self._sha256(fpath)
                 mtime = os.path.getmtime(fpath)
                 size = os.path.getsize(fpath)
+
                 if dataset_id in drs.keys():
-                    drs[dataset_id].append({'file': fpath, 'sha256': sha256,
-                                            'mtime': mtime, 'size': size})
+                    drs[dataset_id].append({
+                        'file': fpath,
+                        'sha256': sha256,
+                        'mtime': mtime,
+                        'size': size
+                    })
+
                 else:
                     drs_count = drs_count + 1
-                    drs[dataset_id] = [{'file': fpath, 'sha256': sha256,
-                                        'mtime': mtime, 'size': size}]
+                    drs[dataset_id] = [{
+                        'file': fpath,
+                        'sha256': sha256,
+                        'mtime': mtime,
+                        'size': size
+                    }]
+
             else:
                 if dataset_id in drs.keys():
                     drs[dataset_id].append({'file': fpath})
+
                 else:
                     drs_count = drs_count + 1
                     drs[dataset_id] = [{'file': fpath}]
+
                     if self.__verbose >= 1:
-                        print('DRS = %s' % dataset_id)
+                        print(f'DRS = {dataset_id}')
 
         if drs_count == 0:
             self.__error_messages.add(
-                'ERROR in %s, no DRS entries created' % (ds))
+                f'ERROR in {ds}, no DRS entries created')
 
         if self.__verbose >= 1:
-            print("Created {count} DRS {entry}".format(
-                count=drs_count, entry='entry'
-                if drs_count == 1 else 'entries'))
+            print(f"Created {drs_count} DRS {'entry' if drs_count == 1 else 'entries'}")
 
         self._write_moles_tags(ds, tags_ds)
 
@@ -374,6 +416,9 @@ class ProcessDatasets(object):
         @return a list of file names complete with paths
 
         """
+        if all([os.path.isfile(x) for x in dir_]):
+            return dir_
+        
         file_list = []
         count = 1
         for root, _, files in os.walk(dir_):
@@ -416,38 +461,47 @@ class ProcessDatasets(object):
         path_facet_bits = fpath.split('/')
         last_bit = len(path_facet_bits) - 1
         file_segments = path_facet_bits[last_bit].split('-')
+
         if len(file_segments) < 5:
             message_found = False
+
             # Do not add another message if we have already reported an invalid
             # file name for this dataset
             for message in self.__error_messages:
-                if (message.startswith('ERROR in %s, invalid file name format'
-                                       % (ds))):
+                if message.startswith(f'ERROR in {ds}, invalid file name format'):
                     message_found = True
+
             if not message_found:
                 self.__error_messages.add(
-                    'ERROR in %s, invalid file name format "%s"' %
-                    (ds, path_facet_bits[last_bit]))
+                    f'ERROR in {ds}, invalid file name format "{path_facet_bits[last_bit]}"'
+                )
+
             return {}, {}
 
         if file_segments[1] == self.ESACCI:
             return self._process_form(
-                ds, self._get_data_from_file_name_1(file_segments))
+                ds, self._get_data_from_file_name_1(file_segments)
+            )
+
         elif file_segments[0] == self.ESACCI:
             return self._process_form(
-                ds, self._get_data_from_file_name_2(file_segments))
+                ds, self._get_data_from_file_name_2(file_segments)
+            )
+
         else:
             message_found = False
+
             # Do not add another message if we have already reported an invalid
             # file name for this dataset
             for message in self.__error_messages:
-                if (message.startswith('ERROR in %s, invalid file name format'
-                                       % (ds))):
+                if message.startswith(f'ERROR in {ds}, invalid file name format'):
                     message_found = True
+
             if not message_found:
                 self.__error_messages.add(
-                    'ERROR in %s, invalid file name format "%s"' %
-                    (ds, path_facet_bits[last_bit]))
+                    f'ERROR in {ds}, invalid file name format "{path_facet_bits[last_bit]}"'
+                )
+
             return {}, {}
 
     @staticmethod
@@ -467,6 +521,7 @@ class ProcessDatasets(object):
         form[ECV] = file_segments[2].split('_')[1]
         form[DATA_TYPE] = file_segments[3]
         form[PRODUCT_STRING] = file_segments[4]
+
         return form
 
     @staticmethod
@@ -486,6 +541,7 @@ class ProcessDatasets(object):
         form[ECV] = file_segments[1]
         form[DATA_TYPE] = file_segments[3]
         form[PRODUCT_STRING] = file_segments[4]
+
         return form
 
     def _process_form(self, ds, form):
@@ -499,71 +555,39 @@ class ProcessDatasets(object):
 
         """
         csv_rec = {}
-        term = self._get_term_uri(
-            PROCESSING_LEVEL, form[PROCESSING_LEVEL], ds)
-        if term is not None:
-            csv_rec[PROCESSING_LEVEL] = term
-            # add broader terms for the processing level
-            broader_proc_level = self.__facets.get_broader_proc_level(term)
-            if broader_proc_level is not None:
-                csv_rec[BROADER_PROCESSING_LEVEL] = broader_proc_level
-        else:
-            self.__not_found_messages.add("%s: %s" %
-                                          (PROCESSING_LEVEL,
-                                           form[PROCESSING_LEVEL]))
-            self.__error_messages.add(
-                'ERROR in %s for %s, invalid value "%s"' %
-                (ds, PROCESSING_LEVEL, form[PROCESSING_LEVEL]))
 
-        term = self._get_term_uri(
-            ECV, form[ECV], ds)
-        if term is not None:
-            csv_rec[ECV] = term
-        else:
-            self.__not_found_messages.add("%s: %s" % (ECV, form[ECV]))
-            self.__error_messages.add(
-                'ERROR in %s for %s, invalid value "%s"' %
-                (ds, ECV, form[ECV]))
+        facets = [PROCESSING_LEVEL, ECV, DATA_TYPE, PRODUCT_STRING]
 
-        term = self._get_term_uri(
-            DATA_TYPE, form[DATA_TYPE], ds)
-        if term is not None:
-            csv_rec[DATA_TYPE] = term
-        else:
-            self.__not_found_messages.add("%s: %s" % (DATA_TYPE,
-                                                      form[DATA_TYPE]))
-            self.__error_messages.add(
-                'ERROR in %s for %s, invalid value "%s"' %
-                (ds, DATA_TYPE, form[DATA_TYPE]))
+        for facet in facets:
+            term = self._get_term_uri(facet, form[facet], ds)
 
-        term = self._get_term_uri(
-            PRODUCT_STRING, form[PRODUCT_STRING], ds)
-        if term is not None:
-            csv_rec[PRODUCT_STRING] = term
-        else:
-            self.__not_found_messages.add("%s: %s" % (PRODUCT_STRING,
-                                                      form[PRODUCT_STRING]))
-            self.__error_messages.add(
-                'ERROR in %s for %s, invalid value "%s"' %
-                (ds, PRODUCT_STRING, form[PRODUCT_STRING]))
+            if term:
+                csv_rec[facet] = term
+
+                if facet == PROCESSING_LEVEL:
+                    # add broader terms for the processing level
+                    broader_proc_level = self.__facets.get_broader_proc_level(term)
+
+                    if broader_proc_level is not None:
+                        csv_rec[BROADER_PROCESSING_LEVEL] = broader_proc_level
+
+            else:
+                # No term, add error messages
+                self.__not_found_messages.add(f'{facet}: {form[facet]}')
+                self.__error_messages.add(f'ERROR in {ds} for {facet}, invalid value "{form[facet]}"')
 
         return self._create_drs_record(csv_rec), csv_rec
 
     def _create_drs_record(self, csv_rec):
-        proc_lev_label = TripleStore.get_alt_label(
-            csv_rec.get(PROCESSING_LEVEL))
-        project_label = TripleStore.get_alt_label(csv_rec.get(ECV))
-        data_type_label = TripleStore.get_alt_label(csv_rec.get(DATA_TYPE))
-        product_label = TripleStore.get_pref_label(csv_rec.get(PRODUCT_STRING))
+
         drs = {}
-        if project_label != '':
-            drs[ECV] = project_label
-        if proc_lev_label != '':
-            drs[PROCESSING_LEVEL] = proc_lev_label
-        if data_type_label != '':
-            drs[DATA_TYPE] = data_type_label
-        if product_label != '':
-            drs[PRODUCT_STRING] = product_label
+
+        for facet in [PROCESSING_LEVEL, ECV, DATA_TYPE, PRODUCT_STRING]:
+            label = self.__facets.get_label_from_uri(facet, csv_rec[facet])
+
+            if label:
+                drs[facet] = label
+
         return drs
 
     def _scan_net_cdf_file(self, fpath, ds, processing_level):
@@ -576,61 +600,76 @@ class ProcessDatasets(object):
         """
         drs = {}
         tags = {}
+
         try:
             nc = netCDF4.Dataset(fpath)
-        except:
+
+        except Exception:
             self.__error_messages.add(
-                'ERROR in %s, extracting attributes from "%s"' % (ds, fpath))
+                f'ERROR in {ds}, extracting attributes from "{fpath}"')
+
             return drs, tags
 
         if self.__verbose >= 2:
-            print("GLOBAL ATTRS for %s: " % fpath)
+            print(f'GLOBAL ATTRS for {fpath}: ')
+
         for global_attr in nc.ncattrs():
             if self.__verbose >= 2:
                 print(global_attr, "=", nc.getncattr(global_attr))
 
             if (global_attr.lower() == FREQUENCY and
                     processing_level is not None and '2' in processing_level):
+
                 # do something special for level 2 data
                 drs[FREQUENCY] = (
                     TripleStore.get_pref_label(LEVEL_2_FREQUENCY))
                 tags[FREQUENCY] = [LEVEL_2_FREQUENCY]
+
             elif global_attr.lower() in self.__allowed_net_cdf_attribs:
                 attr = nc.getncattr(global_attr)
+
                 a_drs, a_tags = self._process_file_atrib(
                     global_attr.lower(), attr, ds)
+
+                # Update tags
                 drs.update(a_drs)
                 tags.update(a_tags)
+
             # we don't have a vocab for product_version
             elif global_attr.lower() == PRODUCT_VERSION:
                 attr = self._convert_term(
                     PRODUCT_VERSION, nc.getncattr(global_attr))
+
                 drs[PRODUCT_VERSION] = attr
                 tags[PRODUCT_VERSION] = attr
 
         if self.__verbose >= 3:
-            print("VARIABLES...")
+            print('VARIABLES...')
+
         for (var_id, var) in nc.variables.items():
             if self.__verbose >= 3:
-                print("\tVARIABLE ATTRIBUTES (%s)" % var_id)
+                print(f'\tVARIABLE ATTRIBUTES ({var_id})')
+
             if var_id == 'time':
                 if var.dimensions == ():
                     self.__error_messages.add(
-                        'ERROR in %s, time has no dimensions' % ds)
+                        f'ERROR in {ds}, time has no dimensions')
                     drs['error'] = True
+
             for attr in var.ncattrs():
                 if self.__verbose >= 3:
-                    print("\t\t%s=%s" % (attr, var.getncattr(attr)))
-                if (attr.lower() == 'long_name' and
-                        len(var.getncattr(attr)) == 0):
+                    print(f'\t\t{attr}={var.getncattr(attr)}')
+
+                if (attr.lower() == 'long_name' and len(var.getncattr(attr)) == 0):
                     self.__error_messages.add(
-                        'WARNING in %s, long_name value has zero length' % ds)
+                        f'WARNING in {ds}, long_name value has zero length')
 
         return drs, tags
 
     def _process_file_atrib(self, global_attr, attr, ds):
         drs = {}
         tags = {}
+
         if self.__use_mapping:
             attr = LocalVocabMappings.split_attrib(attr)
 
@@ -639,9 +678,11 @@ class ProcessDatasets(object):
                 bits = attr.split(', ')
             else:
                 bits = attr.split(',')
+
         elif (global_attr == INSTITUTION or global_attr == SENSOR or
               global_attr == FREQUENCY):
             bits = attr.split(',')
+
         else:
             bits = [attr]
 
@@ -659,63 +700,71 @@ class ProcessDatasets(object):
 
         term_count = 0
         for bit in bits:
-            term_uri = self._get_term_uri(global_attr, bit.strip())
-            if term_uri is not None:
-                # A term found in the vocab
-                drs[global_attr] = (TripleStore.get_pref_label(term_uri))
+            bit = bit.strip()
+
+            if bit == 'N/A':
+                continue
+
+            term_uri = self._get_term_uri(global_attr, bit)
+
+            if term_uri:
+
+                # Add term to the drs
+                drs[global_attr] = (self.__facets.get_label_from_uri(global_attr, term_uri))
+
+                # Create a set to filter out duplicate uris
                 if term_count == 0:
                     tags[global_attr] = set()
+
                 tags[global_attr].add(term_uri)
                 term_count = term_count + 1
 
-                if global_attr == PLATFORM and bit.strip() != "N/A":
+                if global_attr == PLATFORM and bit != "N/A":
                     # add the broader terms
                     for tag in self._get_programme_group(term_uri):
                         tags[global_attr].add(tag)
 
             elif global_attr == PLATFORM:
-                # This is an unknown platform
-                if bit.strip() == "N/A":
-                    continue
-                p_tags = self._get_paltform_as_programme(bit.strip())
-                if len(p_tags) > 0 and term_count == 0:
+
+                p_tags = self._get_platform_as_programme(bit)
+
+                if not p_tags:
+                    self._attrib_not_found_message(ds, global_attr, attr, bit)
+
+                elif term_count == 0:
+                    # p_tags evaluates to true which means it is not an empty list
                     tags[PLATFORM] = set()
+
                     # we are adding a programme or group to the list of
                     # platforms, hence adding more than one platform to the
                     # count to ensure encoded as multi platform
                     term_count = term_count + 2
-                if len(p_tags) == 0:
-                    self._attrib_not_found_message(ds, global_attr, attr,
-                                                   bit.strip())
 
-                for tag in p_tags:
-                    tags[PLATFORM].add(tag)
-
-            elif global_attr == SENSOR and bit.strip() == "N/A":
-                pass
+                # Add all the tags to the set
+                tags[PLATFORM].update(p_tags)
 
             else:
-                self._attrib_not_found_message(ds, global_attr, attr,
-                                               bit.strip())
+                self._attrib_not_found_message(ds, global_attr, attr, bit)
 
-        if term_count > 1 and (global_attr == SENSOR or
-                               global_attr == PLATFORM or
-                               global_attr == FREQUENCY):
-            #             drs[global_attr] = self.MULTI_SENSOR
+        if term_count > 1 and (global_attr in [SENSOR, PLATFORM, FREQUENCY]):
             drs[global_attr] = self.__multi_valued_facet_labels[global_attr]
 
-        if (drs == {} and not((global_attr == PLATFORM or
-                               global_attr == SENSOR) and (attr == "N/A"))):
-            self.__error_messages.add('ERROR in %s for %s, invalid value "%s"'
-                                      % (ds, global_attr, attr))
+
+        if not drs:
+            if global_attr not in [PLATFORM, SENSOR]:
+                if attr != 'N/A':
+                    self.__error_messages.add(f'ERROR in {ds} for {global_attr}, invalid value "{attr}"')
 
         return drs, tags
 
     def _attrib_not_found_message(self, ds, global_attr, attr, value):
+
         self.__not_found_messages.add("%s: %s" % (global_attr, value))
+
         if value == attr:
             self.__error_messages.add('ERROR in %s for %s, invalid value "%s"'
                                       % (ds, global_attr, value))
+
         else:
             self.__error_messages.add('ERROR in %s for %s, invalid value "%s" '
                                       'in "%s"' % (ds, global_attr, value,
@@ -724,109 +773,118 @@ class ProcessDatasets(object):
     def _get_programme_group(self, term_uri):
         # now add the platform programme and group
         tags = []
+
         programme = self.__facets.get_platforms_programme(term_uri)
-        programme_uri = self._get_term_uri(
-            PLATFORM_PROGRAMME, programme)
-        tags.append(programme_uri)
-        try:
+        if programme:
+            programme_uri = self._get_term_uri(PLATFORM_PROGRAMME, programme)
+            tags.append(programme_uri)
+
+
             group = self.__facets.get_programmes_group(programme_uri)
-            group_uri = self._get_term_uri(PLATFORM_GROUP, group)
-            tags.append(group_uri)
-        except KeyError:
-            # not all programmes have groups
-            pass
+            if group:
+                group_uri = self._get_term_uri(PLATFORM_GROUP, group)
+                tags.append(group_uri)
+
         return tags
 
-    def _get_paltform_as_programme(self, platform):
+    def _get_platform_as_programme(self, platform):
         tags = []
+
         # check if the platform is really a platform programme
-        if (platform in self.__facets.get_programme_labels()):
+        if platform in self.__facets.get_programme_labels():
             programme_uri = self._get_term_uri(PLATFORM_PROGRAMME, platform)
             tags.append(programme_uri)
+
             try:
                 group = self.__facets.get_programmes_group(programme_uri)
                 group_uri = self._get_term_uri(PLATFORM_GROUP, group)
                 tags.append(group_uri)
+
             except KeyError:
                 # not all programmes have groups
                 pass
 
         # check if the platform is really a platform group
-        elif (platform in self.__facets.get_group_labels()):
+        elif platform in self.__facets.get_group_labels():
             group_uri = self._get_term_uri(PLATFORM_GROUP, platform)
             tags.append(group_uri)
 
         return tags
 
     def _generate_ds_id(self, ds, drs_facets):
+
         error = False
         facets = [ECV, FREQUENCY, PROCESSING_LEVEL, DATA_TYPE, SENSOR,
                   PLATFORM, PRODUCT_STRING, PRODUCT_VERSION]
-        ds_id = self.DRS_ESACCI
-        for facet in facets:
-            try:
-                if drs_facets[facet] == '':
-                    error = True
-                    message_found = False
-                    # Do not add another message if we have already reported an
-                    # invalid value
-                    for message in self.__error_messages:
-                        if (message.startswith(
-                                'ERROR in %s for %s, invalid value' %
-                                (ds, facet))):
-                            message_found = True
-                    if not message_found:
-                        self.__error_messages.add(
-                            'ERROR in %s for %s, value not found' %
-                            (ds, facet))
 
-                else:
-                    facet_value = str(drs_facets[facet]).replace(
-                        '.', '-').replace(' ', '-')
-                    if facet == FREQUENCY:
-                        facet_value = facet_value.replace(
-                            'month', 'mon').replace('year', 'yr')
-                    ds_id = '%s.%s' % (ds_id, facet_value)
-            except(KeyError):
+        ds_id = self.DRS_ESACCI
+
+        for facet in facets:
+
+            facet_value = drs_facets.get(facet)
+
+            if not facet_value:
+                # facet_value is either None or empty and is an error
                 error = True
                 message_found = False
+
                 # Do not add another message if we have already reported an
                 # invalid value
                 for message in self.__error_messages:
-                    if (message.startswith('ERROR in %s for %s, invalid value'
-                                           % (ds, facet))):
+                    if message.startswith(
+                            f'ERROR in {ds} for {facet}, invalid value'):
                         message_found = True
+                        break
+
                 if not message_found:
                     self.__error_messages.add(
-                        'ERROR in %s for %s, value not found' % (ds, facet))
+                        f'ERROR in {ds} for {facet}, value not found'
+                    )
+
+            else:
+                facet_value = str(drs_facets[facet]).replace('.', '-')
+                facet_value = facet_value.replace(' ', '-')
+
+                if facet == FREQUENCY:
+                    facet_value = facet_value.replace('month', 'mon')
+                    facet_value = facet_value.replace('year', 'yr')
+
+                ds_id = f'{ds_id}.{facet_value}'
+
         if error:
-            return None
+            return
 
         return ds_id
 
     def _get_next_realization(self, ds, drs_id, drs):
+
         realization_no = 1
+
         while True:
-            ds_id_r = '%s.r%s.%s' % (drs_id, realization_no,
-                                     self.__drs_version)
-            if ds_id_r not in drs.keys():
-                return 'r%s' % (realization_no)
+            ds_id_r = f'{drs_id}.r{realization_no}.{self.__drs_version}'
+
+            if ds_id_r not in drs:
+                return f'r{realization_no}'
+
             realization_no = realization_no + 1
 
     def _write_moles_tags(self, ds, drs):
+
         if self.__update_moles:
             if self.__verbose >= 2:
                 print('Updating MOLES tags')
+
         for value in self.__single_valued_facets:
             try:
                 self._write_moles_tags_out(ds, drs[value])
             except KeyError:
                 pass
 
-        for value in self.__multi_valued_facet_labels.keys():
+        for value in self.__multi_valued_facet_labels:
             try:
                 for uri in drs[value]:
                     self._write_moles_tags_out(ds, uri)
+
             except KeyError:
                 pass
 
@@ -839,7 +897,7 @@ class ProcessDatasets(object):
             return
 
         else:
-            self.__file_csv.write('{ds},{uri}\n'.format(ds=ds, uri=uri))
+            self.__file_csv.write(f'{ds},{uri}\n')
 
     def _write_moles_drs_mapping(self):
         if self.__update_moles:
@@ -850,15 +908,17 @@ class ProcessDatasets(object):
     def _write_moles_drs_mapping_to_moles(self):
         if self.__verbose >= 2:
             print('Updating MOLES ESGF mapping')
+
         from tools.esgf_tools.add_drs_datasets import add_mapping
+
         for directory, drs_id, version in self.__ds_drs_mapping:
             add_mapping(directory, drs_id, version)
 
     def _write_moles_drs_mapping_to_file(self):
         with open(MOLES_ESGF_MAPPING_FILE, 'w') as f:
             for directory, drs_id, version in sorted(self.__ds_drs_mapping):
-                f.write('{directory},{drs_id}.{version}\n'.format(
-                    directory=directory, drs_id=drs_id, version=version))
+
+                f.write(f'{directory},{drs_id}.{version}\n')
 
     def _write_json(self, drs):
         if self.__suppress_fo:
@@ -868,16 +928,23 @@ class ProcessDatasets(object):
             json.dumps(drs, sort_keys=True, indent=4, separators=(',', ': ')))
 
     def _get_term_uri(self, facet, term, ds=None):
+
         facet = facet.lower()
         term_l = self._convert_term(facet, term)
-        if term_l in self.__facets.get_labels(facet).keys():
-            return self.__facets.get_labels(facet)[term_l]
-        elif term_l in self.__facets.get_alt_labels(facet).keys():
-            return self.__facets.get_alt_labels(facet)[term_l]
+
+        # Check the pref labels
+        if term_l in self.__facets.get_labels(facet):
+            return self.__facets.get_labels(facet)[term_l].uri
+
+        # Check the alt labels
+        elif term_l in self.__facets.get_alt_labels(facet):
+            return self.__facets.get_alt_labels(facet)[term_l].uri
+
         return None
 
     def _convert_term(self, facet, term):
         term = str(term).lower()
+
         if self.__use_mapping:
             return LocalVocabMappings.get_mapping(facet, term)
         return term
@@ -889,6 +956,7 @@ class ProcessDatasets(object):
 
         if not self.__update_moles:
             self.__file_csv = open(MOLES_TAGS_FILE, 'w')
+
         self.__file_drs = open(ESGF_DRS_FILE, 'w')
 
     def _close_files(self, ):
@@ -897,4 +965,5 @@ class ProcessDatasets(object):
 
         if not self.__update_moles:
             self.__file_csv.close()
+
         self.__file_drs.close()
