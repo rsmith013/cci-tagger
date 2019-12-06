@@ -587,7 +587,7 @@ class ProcessDatasets(object):
         drs = {}
 
         for facet in [PROCESSING_LEVEL, ECV, DATA_TYPE, PRODUCT_STRING]:
-            label = self.__facets.get_label_from_uri(facet, csv_rec[facet])
+            label = self.__facets.get_label_from_uri(facet, csv_rec.get(facet))
 
             if label:
                 drs[facet] = label
