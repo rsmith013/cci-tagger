@@ -244,25 +244,29 @@ class ProcessDatasets(object):
 
         self._close_files()
 
-    def get_tags_as_labels(self, filename):
+    def get_tags_as_labels(self, fpath):
+        """
+        Extracts the facet labels from the tags
+        :param fpath: Path the file to scan
+        :return dict: facets with values list
+        """
 
-        drs_facets = {}
+        ds = os.path.dirname(fpath)
+
         tags_ds = {}
 
         # Get facets from filename
-        net_cdf_drs, net_cdf_tags = self._parse_file_name(
+        _, net_cdf_tags = self._parse_file_name(
             ds, fpath)
 
         # Update tags
-        drs_facets.update(net_cdf_drs)
         tags_ds.update(net_cdf_tags)
 
         # Get facets from metadata
-        net_cdf_drs, net_cdf_tags = self._scan_net_cdf_file(
+        _, net_cdf_tags = self._scan_net_cdf_file(
             fpath, ds, net_cdf_tags.get(PROCESSING_LEVEL))
 
         # Update tags
-        drs_facets.update(net_cdf_drs)
         tags_ds.update(net_cdf_tags)
 
         # Turn uris into human readable tags
@@ -559,7 +563,7 @@ class ProcessDatasets(object):
         facets = [PROCESSING_LEVEL, ECV, DATA_TYPE, PRODUCT_STRING]
 
         for facet in facets:
-            term = self._get_term_uri(facet, form[facet], ds)
+            term = self._get_term_uri(facet, form[facet])
 
             if term:
                 csv_rec[facet] = term
@@ -927,7 +931,7 @@ class ProcessDatasets(object):
         self.__file_drs.write(
             json.dumps(drs, sort_keys=True, indent=4, separators=(',', ': ')))
 
-    def _get_term_uri(self, facet, term, ds=None):
+    def _get_term_uri(self, facet, term):
 
         facet = facet.lower()
         term_l = self._convert_term(facet, term)
