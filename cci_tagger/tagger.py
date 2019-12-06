@@ -745,7 +745,8 @@ class ProcessDatasets(object):
                     term_count = term_count + 2
 
                 # Add all the tags to the set
-                tags[PLATFORM].update(p_tags)
+                if p_tags:
+                    tags[PLATFORM].update(p_tags)
 
             else:
                 self._attrib_not_found_message(ds, global_attr, attr, bit)
