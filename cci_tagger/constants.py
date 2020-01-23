@@ -30,7 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
 
 # Values that are common across a number of modules
-BROADER_PROCESSING_LEVEL = 'broarder_processing_level'
+BROADER_PROCESSING_LEVEL = 'broader_processing_level'
 DATA_TYPE = 'data_type'
 ECV = 'ecv'
 FREQUENCY = 'time_coverage_resolution'
