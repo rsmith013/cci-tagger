@@ -42,7 +42,7 @@ from cci_tagger.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM,\
     PRODUCT_STRING, PRODUCT_VERSION, LEVEL_2_FREQUENCY,\
     BROADER_PROCESSING_LEVEL
 from cci_tagger.facets import Facets
-from cci_tagger.mappings import LocalVocabMappings
+from cci_tagger.mappings import LocalVocabMappings, UserVocabMappings
 from cci_tagger.properties_parser import Properties
 from cci_tagger.settings import ERROR_FILE, ESGF_DRS_FILE, MOLES_TAGS_FILE,\
     MOLES_ESGF_MAPPING_FILE
@@ -118,7 +118,7 @@ class ProcessDatasets(object):
 
     def __init__(self, checksum=True, use_mapping=True, verbose=0,
                  update_moles=False, default_terms_file=None,
-                 suppress_file_output=False, **kwargs):
+                 suppress_file_output=False, json_data=None):
         """
         Initialise the ProcessDatasets class.
 
@@ -152,15 +152,32 @@ class ProcessDatasets(object):
         self.__ds_drs_mapping = set()
         self.__drs_version = 'v{}'.format(strftime("%Y%m%d"))
         self.__user_assigned_defaults, self.__user_assigned_defaults_uris = (
-            self._init_user_assigned_defaults(default_terms_file))
+            self._init_user_assigned_defaults(default_terms_file, json_data))
+        if json_data and json_data.get("mappings"):
+            self.__user_mappings = UserVocabMappings(json_data.get("mappings"))
+        else:
+            self.__user_mappings = None
 
-    def _init_user_assigned_defaults(self, default_terms_file):
-        if default_terms_file is None:
+    def _init_user_assigned_defaults(self, default_terms_file, json_data):
+        if default_terms_file is None and (json_data is None or
+                                           json_data.get("defaults") is None):
             return {}, {}
 
         tags = {}
         tag_uris = {}
-        properties = Properties(default_terms_file).properties()
+        if json_data.get("defaults"):
+            properties = json_data.get("defaults")
+            dafaults_source = "json file"
+        else:
+            properties = Properties(default_terms_file).properties()
+            dafaults_source = default_terms_file
+
+        if self.__verbose >= 1:
+            print("Using defaults from %s" % dafaults_source)
+            if self.__verbose >= 2:
+                for key, value in properties.items():
+                    print("\t{key}: {value}".format(key=key, value=value))
+
         # validate the user values against data from the triple store
         for key in properties.keys():
             # get the values for a facet (property key)
@@ -169,7 +186,7 @@ class ProcessDatasets(object):
             except KeyError:
                 print('ERROR "{key}" in {file} is not a valid facet value. '
                       'Should be one of {facets}.'.
-                      format(key=key, file=default_terms_file,
+                      format(key=key, file=dafaults_source,
                              facets=', '.join(
                                  sorted(self.__facets.get_facet_names()))))
                 exit(1)
@@ -180,7 +197,7 @@ class ProcessDatasets(object):
                 for value in values:
                     value = value.strip().lower()
                     self._check_property_value(
-                        value, labels.keys(), key, default_terms_file)
+                        value, labels.keys(), key, dafaults_source)
                     tag_uris[key].add(labels[value])
                 if len(values) > 1:
                     tags[key] = self.__multi_valued_facet_labels[key]
@@ -189,16 +206,16 @@ class ProcessDatasets(object):
             else:
                 value = properties[key].strip().lower()
                 self._check_property_value(
-                    value, labels.keys(), key, default_terms_file)
+                    value, labels.keys(), key, dafaults_source)
                 tag_uris[key] = labels[properties[key].lower()]
                 tags[key] = value
         return tags, tag_uris
 
-    def _check_property_value(self, value, labels, facet, default_terms_file):
+    def _check_property_value(self, value, labels, facet, dafaults_source):
         if value not in labels:
             print ('ERROR "{value}" in {file} is not a valid value for '
                    '{facet}. Should be one of {labels}.'.
-                   format(value=value, file=default_terms_file,
+                   format(value=value, file=dafaults_source,
                           facet=facet, labels=', '.join(sorted(labels))))
             exit(1)
         return True
@@ -673,6 +690,8 @@ class ProcessDatasets(object):
     def _process_file_atrib(self, global_attr, attr, ds):
         drs = {}
         tags = {}
+        if self.__user_mappings:
+            attr = self.__user_mappings.split_attrib(attr)
 
         if self.__use_mapping:
             attr = LocalVocabMappings.split_attrib(attr)
@@ -950,8 +969,11 @@ class ProcessDatasets(object):
     def _convert_term(self, facet, term):
         term = str(term).lower()
 
+        if self.__user_mappings:
+            term = self.__user_mappings.get_mapping(facet, term)
+
         if self.__use_mapping:
-            return LocalVocabMappings.get_mapping(facet, term)
+            term = LocalVocabMappings.get_mapping(facet, term)
         return term
 
     def _open_files(self, ):

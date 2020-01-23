@@ -32,6 +32,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 from datetime import datetime
+import json
+from os import path
 import sys
 import os
 import time
@@ -59,6 +61,26 @@ def get_datasets_from_file(file_name):
     return datasets
 
 
+def read_json_file(file_name):
+    """
+    Get the contents from the given json file.
+
+    @param file_name (str): the name of the json file
+
+    @return the contents of the json file
+
+    """
+    base_path = path.abspath(path.dirname(__file__))
+    file_name = path.join(base_path, "json", file_name)
+
+    json_file = path.join(base_path, file_name)
+
+    with open(json_file) as json_data:
+        data = json.load(json_data)
+
+    return data
+
+
 class CCITaggerCommandLineClient(object):
 
     def parse_command_line(self, argv):
@@ -79,6 +101,7 @@ class CCITaggerCommandLineClient(object):
             '\n  moles_esgf_tag -d /neodc/esacci/cloud/data/L3C/avhrr_noaa-16 '
             '-v'
             '\n  moles_esgf_tag -f datapath --file_count 2 --no_check_sum -v'
+            '\n  moles_esgf_tag -j example.json -v'
             '\n  moles_esgf_tag -s'
             '\n\nDEFAULT_TERMS_FILE'
             '\n  This file should have the format of:'
@@ -104,6 +127,10 @@ class CCITaggerCommandLineClient(object):
             help=('the name of the file containing a list of datasets to '
                   'process. This option is used for tagging one or more '
                   'datasets.'))
+        group.add_argument(
+            '-j', '--json_mappings',
+            help=('use the json file for the list of datasets, the local vocabulary '
+                  'mappings and the defaults'))
         group.add_argument(
             '-s', '--show_mappings', action='store_true',
             help='show the local vocabulary mappings')
@@ -141,6 +168,7 @@ class CCITaggerCommandLineClient(object):
 
         args = parser.parse_args(argv[1:])
         datasets = None
+        json_data = None
         if args.dataset is not None:
             if args.verbose >= 1:
                 print("\n%s STARTED" % (time.strftime("%H:%M:%S")))
@@ -150,26 +178,31 @@ class CCITaggerCommandLineClient(object):
             if args.verbose >= 1:
                 print("\n%s STARTED" % (time.strftime("%H:%M:%S")))
             datasets = get_datasets_from_file(args.file)
+        elif args.json_mappings is not None:
+            if args.verbose >= 1:
+                print("\n%s STARTED" % (time.strftime("%H:%M:%S")))
+            json_data = read_json_file(args.json_mappings)
+            datasets = json_data.get("datasets")
         elif args.show_mappings:
             print(LocalVocabMappings())
         elif args.export:
             outfile = os.path.join(args.export,'vocab_export.json')
             Facets().export_mappings(outfile)
 
-        return datasets, args
+        return datasets, json_data, args
 
     @classmethod
     def main(cls, argv=sys.argv):
         start_time = datetime.now()
         client = cls()
-        datasets, args = client.parse_command_line(argv)
+        datasets, json_data, args = client.parse_command_line(argv)
         if datasets is None:
             sys.exit(0)
 
         pds = ProcessDatasets(
             checksum=not(args.no_check_sum), use_mapping=args.use_mappings,
             verbose=args.verbose, update_moles=args.update_moles,
-            default_terms_file=args.default_terms_file)
+            default_terms_file=args.default_terms_file, json_data=json_data)
         pds.process_datasets(datasets, args.file_count)
 
         if args.verbose >= 1:
@@ -181,6 +214,7 @@ class CCITaggerCommandLineClient(object):
             print('Time taken %02d:%02d:%02d' % (hours, minutes, seconds))
 
         exit(0)
+
 
 if __name__ == "__main__":
     CCITaggerCommandLineClient.main()

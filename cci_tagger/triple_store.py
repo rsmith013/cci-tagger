@@ -101,9 +101,11 @@ class TripleStoreMC(type):
                      'skos:inScheme <%s> . ?concept skos:prefLabel ?label} }' %
                      (cls.__prefix, uri))
         result_set = graph.query(statement)
+
         concepts = {}
         for result in result_set:
-            concepts[("" + result.label).lower()] = Concept(result.label, result.concept)
+            concepts[("" + result.label).lower()] = Concept(result.label, result.concept.toPython())
+
         return concepts
 
     @classmethod
@@ -126,10 +128,12 @@ class TripleStoreMC(type):
             (cls.__prefix, uri))
         result_set = graph.query(statement)
         concepts = {}
+
         for result in result_set:
-            uri = str(result.concept)
-            label = str(cls._get_nerc_pref_label(uri))
-            concepts[label.lower()] = Concept(label, uri)
+            uri = result.concept.toPython()
+            label = cls._get_nerc_pref_label(uri).lower()
+            concepts[label] = Concept(label, uri)
+
         return concepts
 
     @classmethod
@@ -150,9 +154,11 @@ class TripleStoreMC(type):
                      'skos:inScheme <%s> . ?concept skos:altLabel ?label} }' %
                      (cls.__prefix, uri))
         result_set = graph.query(statement)
+
         concepts = {}
         for result in result_set:
-            concepts[("" + result.label).lower()] = Concept(result.label, result.concept)
+            concepts[("" + result.label).lower()] = Concept(result.label, result.concept.toPython())
+
         return concepts
 
     @classmethod
@@ -174,11 +180,13 @@ class TripleStoreMC(type):
             'FILTER regex(str(?concept), "^http://vocab.nerc.ac.uk", "i")}}' %
             (cls.__prefix, uri))
         result_set = graph.query(statement)
+
         concepts = {}
         for result in result_set:
-            uri = str(result.concept)
-            label = str(cls._get_nerc_pref_label(uri))
-            concepts[label.lower()] = Concept(label, uri)
+            uri = result.concept.toPython()
+            label = cls._get_nerc_pref_label(uri).lower()
+            concepts[label] = Concept(label, uri)
+
         return concepts
 
     @classmethod
@@ -210,10 +218,12 @@ class TripleStoreMC(type):
         statement = ('%s SELECT ?label WHERE { GRAPH ?g {<%s> skos:prefLabel '
                      '?label} }' % (cls.__prefix, uri))
         results = graph.query(statement)
+
         # there should only be one result
         for resource in results:
-            cls.__pref_label_cache[uri] = str(resource.label)
-            return str(resource.label)
+            cls.__pref_label_cache[uri] = resource.label.toPython()
+            return resource.label.toPython()
+
         cls.__pref_label_cache[uri] = ''
         return ''
 
@@ -227,9 +237,10 @@ class TripleStoreMC(type):
 
         # there should only be one result
         for resource in results:
-            label = str(resource.label.strip().replace(u'\xa0', u' '))
+            label = resource.label.strip().replace(u'\xa0', u' ').toPython()
             cls.__pref_label_cache[uri] = label
             return label
+
         cls.__pref_label_cache[uri] = ''
         return ''
 
@@ -262,10 +273,12 @@ class TripleStoreMC(type):
         statement = ('%s SELECT ?label WHERE { GRAPH ?g {<%s> skos:altLabel '
                      '?label} }' % (cls.__prefix, uri))
         results = graph.query(statement)
+
         # there should only be one result
         for resource in results:
-            cls.__alt_label_cache[uri] = str(resource.label)
-            return str(resource.label)
+            cls.__alt_label_cache[uri] = resource.label.toPython()
+            return resource.label.toPython()
+
         cls.__alt_label_cache[uri] = ''
         return ''
 
@@ -279,9 +292,10 @@ class TripleStoreMC(type):
 
         # there should only be one result
         for resource in results:
-            label = str(resource.label.strip().replace(u'\xa0', u' '))
+            label = resource.label.strip().replace(u'\xa0', u' ').toPython()
             cls.__alt_label_cache[uri] = label
             return label
+
         cls.__alt_label_cache[uri] = ''
         return ''
 
@@ -302,9 +316,10 @@ class TripleStoreMC(type):
                      'skos:narrower <%s> . ?concept skos:prefLabel ?label} }' %
                      (cls.__prefix, uri))
         results = graph.query(statement)
+
         # there should only be one result
         for resource in results:
-            return str(resource.label), str(resource.concept)
+            return (resource.label.toPython(), resource.concept.toPython())
         return '', ''
 
 

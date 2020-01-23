@@ -215,3 +215,103 @@ class LocalVocabMappings(object):
             # no mapping for this attr
             return attr
         return cls.__merged_attr[attr]
+
+
+class UserVocabMappings(object):
+    """
+    These mappings are used to map from values found in the files to the terms
+    used in the vocab server.
+
+    Not all of the net cdf files contain values that are in the vocabulary as
+    some of them were created before the vocabulary was formalised. This class
+    provides a means to map from terms found in the net cdf files to terms in
+    the vocabulary. They are grouped into facets. The key of the dicts are the
+    non compliant terms and the associated values are the correct terms to use.
+
+    """
+
+    def __init__(self, mappings):
+        """
+        Initialise the class with a dictionary of mappings.
+        """
+        self.__mappings = mappings
+
+    def __str__(self):
+        """
+        Get the string representation.
+
+        @return the str representation of this class
+
+        """
+        output = ''
+        for scheme in self.__mappings.keys():
+            scheme_dict = self.__mappings[scheme]
+            if len(scheme_dict) > 0:
+                output = ('%s\nMappings for %s:\n' % (output, scheme))
+                for key in scheme_dict.keys():
+                    output = ('%s\tfrom\t %s\n\tto\t %s\n' %
+                              (output, key, scheme_dict[key]))
+
+        if len(self.__mappings["merged"]) > 0:
+            output = ('%s\nMappings for merged attributes:\n' % (output))
+            for key in self.__mappings["merged"].keys():
+                output = ('%s\tfrom\t %s\n\tto\t %s\n' %
+                          (output, key, self.__mappings["merged"][key]))
+        return output
+
+    def get_mapping(self, facet, term):
+        """
+        Get the mapping for the given facet and term.
+
+        @param facet (str): the name of the facet
+        @param term (str): the name of the term
+
+        @return a str containing the mapped term or the original term if no
+                mapping was found.
+
+
+        """
+        if facet not in self.__mappings.keys():
+            # no mapping for this facet
+            return term
+
+        term = term.lower()
+        for key in self.__mappings[facet].keys():
+            if term == key.lower():
+                return self.__mappings[facet][key].lower()
+
+        if facet == FREQUENCY:
+            # extra stuff for frequency
+            for key in self.__freq_start_with.keys():
+                if term.startswith(key.lower()):
+                    return self.__freq_start_with[key].lower()
+
+        return term
+
+    def get_facet(self):
+        """
+        Get the list of facets that mappings are available for.
+
+        @return a list(str) the names of the known facets
+
+        """
+        return self.__mappings.keys()
+
+    def split_attrib(self, attr):
+        """
+        Split an attribute into its component bits.
+
+        @param attr(str) the attribute to split
+
+        @return a str containing the mapped term or the original term if no
+                mapping was found.
+
+        """
+        if not self.__mappings.get("merged"):
+            # no mappings for merged
+            return attr
+        if attr not in self.__mappings["merged"].keys():
+            # no mapping for this attr
+            return attr
+        return self.__mappings["merged"][attr]
+
