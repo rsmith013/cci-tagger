@@ -33,7 +33,6 @@ import hashlib
 import json
 import os
 from time import strftime
-import re
 
 import netCDF4
 
@@ -261,35 +260,68 @@ class ProcessDatasets(object):
 
         self._close_files()
 
-    def get_tags_as_labels(self, fpath):
+    def get_file_tags(self, fpath):
         """
         Extracts the facet labels from the tags
         :param fpath: Path the file to scan
-        :return dict: facets with values list
+        :return: drs identifier (string), facet labels (dict)
         """
 
+        # Get the dataset
         ds = os.path.dirname(fpath)
 
+        drs_facets = {}
         tags_ds = {}
 
-        # Get facets from filename
-        _, net_cdf_tags = self._parse_file_name(
-            ds, fpath)
+        # Get the vocab uris and DRS facets
+        net_cdf_drs, net_cdf_tags = self._get_tags(ds, fpath)
 
-        # Update tags
-        tags_ds.update(net_cdf_tags)
-
-        # Get facets from metadata
-        _, net_cdf_tags = self._scan_net_cdf_file(
-            fpath, ds, net_cdf_tags.get(PROCESSING_LEVEL))
-
-        # Update tags
+        # Update the user defined defaults
+        drs_facets.update(net_cdf_drs)
         tags_ds.update(net_cdf_tags)
 
         # Turn uris into human readable tags
         tags = self.__facets.process_bag(tags_ds)
 
-        return tags
+        # Generate DRS id
+        drs = self._generate_ds_id(ds, drs_facets)
+
+        return drs, tags
+
+    def _get_tags(self, ds, fpath):
+        """
+        Takes the dataset and file path and generates tags from filepath and
+        file metadata.
+
+        :param ds: Dataset directory path
+        :param fpath: Full path to the file being processed
+        :return:
+        tuple (dict)
+            [0] Labels for the DRS facets
+            [1] Uris for the labels
+
+        """
+
+        drs_facets = {}
+        uri_tags = {}
+
+        # Get tags from filename
+        net_cdf_drs, net_cdf_tags = self._parse_file_name(ds, fpath)
+
+        # Update tags
+        drs_facets.update(net_cdf_drs)
+        uri_tags.update(net_cdf_tags)
+
+        # Get tags from file metadata
+        net_cdf_drs, net_cdf_tags = self._scan_net_cdf_file(
+            fpath, ds, net_cdf_tags.get(PROCESSING_LEVEL))
+
+        # Update tags
+        drs_facets.update(net_cdf_drs)
+        uri_tags.update(net_cdf_tags)
+
+        return drs_facets, uri_tags
+
 
     def _process_dataset(self, ds, count, drs, max_file_count):
         """
@@ -329,18 +361,9 @@ class ProcessDatasets(object):
             # the terms to be used to generate the DRS
             drs_facets = dict(self.__user_assigned_defaults)
 
-            # Get tags from filename
-            net_cdf_drs, net_cdf_tags = self._parse_file_name(ds, fpath)
+            net_cdf_drs, net_cdf_tags = self._get_tags(ds, fpath)
 
-            # Update tags
-            drs_facets.update(net_cdf_drs)
-            tags_ds.update(net_cdf_tags)
-
-            # Get tags from file metadata
-            net_cdf_drs, net_cdf_tags = self._scan_net_cdf_file(
-                fpath, ds, net_cdf_tags.get(PROCESSING_LEVEL))
-
-            # Update tags
+            # Update the user defined defaults
             drs_facets.update(net_cdf_drs)
             tags_ds.update(net_cdf_tags)
 
@@ -349,18 +372,6 @@ class ProcessDatasets(object):
             # only add files with all of the drs data
             if dataset_id is None or drs_facets.get('error'):
                 continue
-
-            if dataset_id not in current_drs_ids:
-                current_drs_ids[dataset_id] = self._get_next_realization(
-                    ds, dataset_id, drs)
-
-                dataset_id = f'{dataset_id}.{current_drs_ids[dataset_id]}'
-
-                self.__ds_drs_mapping.add((ds, dataset_id, self.__drs_version))
-                dataset_id = f'{dataset_id}.{self.__drs_version}'
-
-            else:
-                dataset_id = f'{dataset_id}.{current_drs_ids[dataset_id]}.{self.__drs_version}'
 
             if self.__checksum:
                 sha256 = self._sha256(fpath)
@@ -878,19 +889,22 @@ class ProcessDatasets(object):
         if error:
             return
 
+        # Add realisation
+        ds_id = f'{ds_id}.{self._get_realisation(ds)}'
+
         return ds_id
 
-    def _get_next_realization(self, ds, drs_id, drs):
+    def _get_realisation(self, ds):
+        """
+        Get the realisation value for the dataset. This will default
+        to r1 but can be changed by modifying/creating a dataset
+        JSON file
 
-        realization_no = 1
+        :param ds: Path to dataset (String)
+        :return: realisation (String)
+        """
 
-        while True:
-            ds_id_r = f'{drs_id}.r{realization_no}.{self.__drs_version}'
-
-            if ds_id_r not in drs:
-                return f'r{realization_no}'
-
-            realization_no = realization_no + 1
+        return 'r1'
 
     def _write_moles_tags(self, ds, drs):
 
