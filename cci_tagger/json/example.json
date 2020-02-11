@@ -3,6 +3,10 @@
 		"/path/1",
 		"/path/2"
 	],
+	"filters": {
+		"/path/1": "*.nc",
+		"/path/2": "*.txt"
+	},
 	"mappings": {
 		"ecv": {
 			"GHRSST": "sea surface temperature"
@@ -28,6 +32,9 @@
 		},
 		"version": {
 			"03.02.": "03.02"
+		},
+		"merged": {
+			"MERISAATSR": "MERIS,AATSR"
 		}
 	},
 	"defaults": {
@@ -38,6 +45,9 @@
 		"/path/1": "r2"
 	},
 	"overrides": {
-        "freq": "day"
+        "freq": ["day"],
+		"institution": [],
+		"platform": [],
+		"sensor": []
 	}
 }

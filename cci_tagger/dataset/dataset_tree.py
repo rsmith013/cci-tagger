@@ -9,7 +9,6 @@ __license__ = 'BSD - see LICENSE file in top-level package directory'
 __contact__ = 'richard.d.smith@stfc.ac.uk'
 
 from directory_tree import DatasetNode
-import glob
 import os
 import json
 from pathlib import Path
@@ -21,11 +20,15 @@ class DatasetJSONMappings:
     # containing the mappings
     _json_lookup = {}
 
-    # Place to put the loading mappings from the JSON files once they are required
+    # Place to cache the loaded mappings from the JSON files once they are required
     # in the processing
-    _user_json = {}
+    _user_json_cache = {}
 
-    # Place to put mappings between datasets and realisation
+    # Place to cache the loaded mappings and URI lookups from the JSON files once
+    # they are required in the processing
+    _user_uri_cache = {}
+
+    # Place to store mappings between datasets and realisation
     _dataset_realisations = {}
 
 
@@ -35,7 +38,10 @@ class DatasetJSONMappings:
         self._dataset_tree = DatasetNode()
 
         # Get list of all JSON files
-        json_files = Path().glob(os.path.join(json_dir, '**/*.json'))
+        if json_dir:
+            json_files = Path().glob(os.path.join(json_dir, '**/*.json'))
+        else:
+            json_files = []
 
         # Read all the json files and build a tree of datasets
         for file in json_files:
@@ -52,7 +58,6 @@ class DatasetJSONMappings:
                 for dataset in realisations:
                     self._dataset_realisations[dataset] = realisations[dataset]
 
-
     def get_dataset(self, path):
         """
         Returns the dataset which directly matches the given file path
@@ -66,19 +71,19 @@ class DatasetJSONMappings:
         if ds:
             return ds[:-1]
 
+        return path
 
     def get_user_defined_mapping(self, dataset):
         """
         Load the relevant JSON file and return the "mappings" section.
-        Will return None if no mapping found.
+        Will return {} if no mapping found.
 
-        :return: mappings (dict) | None
+        :return: mappings (dict) | {}
         """
 
         data = self.load_mapping(dataset)
 
-        return data.get('mappings')
-
+        return data.get('mappings', {})
 
     def load_mapping(self, dataset):
         """
@@ -93,7 +98,7 @@ class DatasetJSONMappings:
 
         if mapping_file:
 
-            json_data = self._user_json.get(dataset)
+            json_data = self._user_json_cache.get(dataset)
 
             # If the file hasn't been loaded yet, read the contents of the file
             # and store
@@ -101,27 +106,53 @@ class DatasetJSONMappings:
 
                 with open(mapping_file) as reader:
                     json_data = json.load(reader)
-                    self._user_json[dataset] = json_data
+                    self._user_json_cache[dataset] = json_data
 
         return json_data
-
 
     def get_user_defined_defaults(self, dataset):
         """
         Load the relevant JSON file and return the "defaults" section.
-        Will return None if no defaults found.
+        Will return {} if no defaults found.
+
         :param dataset: (string)
-        :return: defaults (dict) | None
+        :return: defaults (dict) | {}
         """
 
         data = self.load_mapping(dataset)
 
-        return data.get('defaults')
+        return data.get('defaults', {})
 
+    def get_merged_attribute(self, dataset, attr):
+        """
+        In some cases, the attribute from the file is a merged list of many attributes.
+        This method maps a complex string to a simpler comma separated string
+        which can be used in the next steps of the code.
+
+        :param dataset: Dataset we are working with
+        :param attr: The attribute to map
+        :return: The mapped term or original string if no map found
+        """
+
+        # Load the mapping
+        mappings = self.get_user_defined_mapping(dataset)
+
+        merged = mappings.get('merged')
+
+        # Check if there is a merged attribute in the mapping
+        if merged:
+            mapped_val = merged.get(attr)
+
+            # Return the mapped value, if there is one
+            if mapped_val:
+                return mapped_val
+
+        # Defaults to returning the input attribute
+        return attr
 
     def get_user_defined_overrides(self, dataset):
         """
-        Load the relevand JSON file and return the overrides section.
+        Load the relevant JSON file and return the overrides section.
         Will return None if no overrides found.
         :param dataset: (string)
         :return: overrides (dict) | None
@@ -130,7 +161,6 @@ class DatasetJSONMappings:
         data = self.load_mapping(dataset)
 
         return data.get('overrides')
-
 
     def get_dataset_realisation(self, dataset):
         """
@@ -156,7 +186,7 @@ if __name__ == '__main__':
     files = ['/neodc/esacci/sea_surface_salinity/data/v01.8/30days/2013/ESACCI-SEASURFACESALINITY-L4-SSS-MERGED_OI_Monthly_CENTRED_15Day_25km-20130101-fv1.8.nc',
              '/neodc/esacci/sea_surface_salinity/data/v01.8/7days/2014/ ESACCI-SEASURFACESALINITY-L4-SSS-MERGED_OI_7DAY_RUNNINGMEAN_DAILY_25km-20140101-fv1.8.nc']
 
-    tree = DatasetJSONMappings('./json')
+    tree = DatasetJSONMappings(None)
 
     for file in files:
         print("Dataset")

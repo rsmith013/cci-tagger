@@ -89,7 +89,6 @@ class Facets(object):
         self.__facets[facet] = TripleStore.get_concepts_in_scheme(uri)
         self.__facets[f'{facet}-alt'] = TripleStore.get_alt_concepts_in_scheme(uri)
 
-
     def _init_platform_mappings(self):
         """
         Initialise the platform-programme and programme-group mappings.
@@ -166,7 +165,7 @@ class Facets(object):
 
     def get_alt_labels(self, facet):
         """
-        Get the facet alternative labels and uirs.
+        Get the facet alternative labels and URIs.
 
         @param facet (str): the name of the facet
 
@@ -179,7 +178,7 @@ class Facets(object):
 
     def get_labels(self, facet):
         """
-        Get the facet labels and uirs.
+        Get the facet labels and URIs.
 
         @param facet (str): the name of the facet
 

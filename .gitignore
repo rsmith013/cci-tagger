@@ -2,3 +2,5 @@
 /cci_tagger.egg-info
 *.pyc
 .idea
+cci_tagger/tests/*.nc
+venv

@@ -32,7 +32,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import hashlib
 import json
 import os
-from time import strftime
 
 import netCDF4
 
@@ -42,10 +41,11 @@ from cci_tagger.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM,\
     BROADER_PROCESSING_LEVEL
 from cci_tagger.facets import Facets
 from cci_tagger.mappings import LocalVocabMappings, UserVocabMappings
-from cci_tagger.properties_parser import Properties
 from cci_tagger.settings import ERROR_FILE, ESGF_DRS_FILE, MOLES_TAGS_FILE,\
     MOLES_ESGF_MAPPING_FILE
 from cci_tagger.triple_store import TripleStore
+from cci_tagger.dataset.dataset_tree import DatasetJSONMappings
+from cci_tagger.dataset.dataset import Dataset
 
 
 class ProcessDatasets(object):
@@ -116,8 +116,8 @@ class ProcessDatasets(object):
     }
 
     def __init__(self, checksum=True, use_mapping=True, verbose=0,
-                 update_moles=False, default_terms_file=None,
-                 suppress_file_output=False, json_data=None):
+                 update_moles=False, suppress_file_output=False,
+                 json_data=None, json_directory=None):
         """
         Initialise the ProcessDatasets class.
 
@@ -132,6 +132,7 @@ class ProcessDatasets(object):
         self.__verbose = verbose
         self.__update_moles = update_moles
         self.__suppress_fo = suppress_file_output
+
         if self.__update_moles:
             try:
                 from tools.vocab_tools.tag_obs_with_vocab_terms import \
@@ -149,30 +150,32 @@ class ProcessDatasets(object):
         self.__not_found_messages = set()
         self.__error_messages = set()
         self.__ds_drs_mapping = set()
-        self.__drs_version = 'v{}'.format(strftime("%Y%m%d"))
+        self.__dataset_json_values = DatasetJSONMappings(json_directory)
+
         self.__user_assigned_defaults, self.__user_assigned_defaults_uris = (
-            self._init_user_assigned_defaults(default_terms_file, json_data))
+            self._init_user_assigned_defaults(json_data))
+
+
+
         if json_data and json_data.get("mappings"):
             self.__user_mappings = UserVocabMappings(json_data.get("mappings"))
         else:
             self.__user_mappings = None
 
-    def _init_user_assigned_defaults(self, default_terms_file, json_data):
-        if default_terms_file is None and (json_data is None or
-                                           json_data.get("defaults") is None):
+    def _init_user_assigned_defaults(self, json_data):
+        # TODO: Need to make sure can get a dynamic initial set of URIs from
+        # TODO: the config files
+        if json_data is None or json_data.get("defaults") is None:
             return {}, {}
 
         tags = {}
         tag_uris = {}
         if json_data.get("defaults"):
             properties = json_data.get("defaults")
-            dafaults_source = "json file"
-        else:
-            properties = Properties(default_terms_file).properties()
-            dafaults_source = default_terms_file
+            defaults_source = "json file"
 
         if self.__verbose >= 1:
-            print("Using defaults from %s" % dafaults_source)
+            print(f"Using defaults from {defaults_source}")
             if self.__verbose >= 2:
                 for key, value in properties.items():
                     print("\t{key}: {value}".format(key=key, value=value))
@@ -183,38 +186,49 @@ class ProcessDatasets(object):
             try:
                 labels = self.__facets.get_labels((key.lower()))
             except KeyError:
-                print('ERROR "{key}" in {file} is not a valid facet value. '
-                      'Should be one of {facets}.'.
-                      format(key=key, file=dafaults_source,
-                             facets=', '.join(
-                                 sorted(self.__facets.get_facet_names()))))
+                print(
+                    'ERROR "{key}" in {file} is not a valid facet value. '
+                    'Should be one of {facets}.'.format(
+                        key=key,
+                        file=defaults_source,
+                        facets=', '.join(
+                            sorted(self.__facets.get_facet_names())
+                        )
+                    )
+                )
                 exit(1)
 
             if key in self.__multi_valued_facet_labels.keys():
                 tag_uris[key] = set()
                 values = properties[key].lower().split(',')
+
                 for value in values:
                     value = value.strip().lower()
                     self._check_property_value(
-                        value, labels.keys(), key, dafaults_source)
+                        value, labels.keys(), key, defaults_source)
                     tag_uris[key].add(labels[value])
+
                 if len(values) > 1:
                     tags[key] = self.__multi_valued_facet_labels[key]
                 else:
                     tags[key] = values[0].strip().lower()
+
             else:
                 value = properties[key].strip().lower()
+
                 self._check_property_value(
-                    value, labels.keys(), key, dafaults_source)
+                    value, labels.keys(), key, defaults_source)
+
                 tag_uris[key] = labels[properties[key].lower()]
                 tags[key] = value
+
         return tags, tag_uris
 
-    def _check_property_value(self, value, labels, facet, dafaults_source):
+    def _check_property_value(self, value, labels, facet, defaults_source):
         if value not in labels:
             print ('ERROR "{value}" in {file} is not a valid value for '
                    '{facet}. Should be one of {labels}.'.
-                   format(value=value, file=dafaults_source,
+                   format(value=value, file=defaults_source,
                           facet=facet, labels=', '.join(sorted(labels))))
             exit(1)
         return True
@@ -241,8 +255,9 @@ class ProcessDatasets(object):
         drs = {}
         count = 0
 
-        for ds in sorted(datasets):
+        for dspath in sorted(datasets):
             count = count + 1
+            ds = self.__dataset_json_values.get_dataset(dspath)
             self._process_dataset(ds, count, drs, max_file_count)
 
         self._write_json(drs)
@@ -268,17 +283,14 @@ class ProcessDatasets(object):
         """
 
         # Get the dataset
-        ds = os.path.dirname(fpath)
-
-        drs_facets = {}
-        tags_ds = {}
+        ds = self.__dataset_json_values.get_dataset(fpath)
 
         # Get the vocab uris and DRS facets
         net_cdf_drs, net_cdf_tags = self._get_tags(ds, fpath)
 
         # Update the user defined defaults
-        drs_facets.update(net_cdf_drs)
-        tags_ds.update(net_cdf_tags)
+        drs_facets = net_cdf_drs
+        tags_ds = net_cdf_tags
 
         # Turn uris into human readable tags
         tags = self.__facets.process_bag(tags_ds)
@@ -302,7 +314,9 @@ class ProcessDatasets(object):
 
         """
 
-        drs_facets = {}
+        # Get the default values for the drs_facets which relate to the
+        # specific dataset
+        drs_facets = self.__dataset_json_values.get_user_defined_defaults(ds)
         uri_tags = {}
 
         # Get tags from filename
@@ -320,8 +334,9 @@ class ProcessDatasets(object):
         drs_facets.update(net_cdf_drs)
         uri_tags.update(net_cdf_tags)
 
-        return drs_facets, uri_tags
+        # TODO: Handle overwrites
 
+        return drs_facets, uri_tags
 
     def _process_dataset(self, ds, count, drs, max_file_count):
         """
@@ -358,8 +373,8 @@ class ProcessDatasets(object):
             return
 
         for fpath in nc_files:
-            # the terms to be used to generate the DRS
-            drs_facets = dict(self.__user_assigned_defaults)
+
+            drs_facets = {}
 
             net_cdf_drs, net_cdf_tags = self._get_tags(ds, fpath)
 
@@ -699,22 +714,36 @@ class ProcessDatasets(object):
         return drs, tags
 
     def _process_file_atrib(self, global_attr, attr, ds):
+        """
+        Process tag extracted from the file
+        :param global_attr: Facet (e.g. PLATFORM, SENSOR,...)
+        :param attr: The extracted tag from the file
+        :param ds: Dataset in current processing. Used for logging.
+        :return: (drs labels, uri tags)
+        """
+
+        # Set up empty dictionaries to hold results
         drs = {}
         tags = {}
-        if self.__user_mappings:
-            attr = self.__user_mappings.split_attrib(attr)
+
+        # Some attributes have been merged, lookup in mappings to see if there
+        # is a mapping between these merged fields and a simpler, comma separated
+        # string. Order should be Local mappings, custom user JSON.
 
         if self.__use_mapping:
             attr = LocalVocabMappings.split_attrib(attr)
 
+        if self.__user_mappings:
+            attr = self.__user_mappings.split_attrib(attr)
+
+        # Split based on separator
         if global_attr == PLATFORM:
             if '<' in attr:
                 bits = attr.split(', ')
             else:
                 bits = attr.split(',')
 
-        elif (global_attr == INSTITUTION or global_attr == SENSOR or
-              global_attr == FREQUENCY):
+        elif global_attr in [INSTITUTION, SENSOR, FREQUENCY]:
             bits = attr.split(',')
 
         else:
@@ -981,6 +1010,8 @@ class ProcessDatasets(object):
         return None
 
     def _convert_term(self, facet, term):
+        # TODO: Make sure that this uses the dynamic mappings
+
         term = str(term).lower()
 
         if self.__user_mappings:

@@ -9,7 +9,7 @@ __license__ = 'BSD - see LICENSE file in top-level package directory'
 __contact__ = 'richard.d.smith@stfc.ac.uk'
 
 import unittest
-from cci_tagger.dataset_tree import DatasetJSONMappings
+from cci_tagger.dataset.dataset_tree import DatasetJSONMappings
 
 
 class TestDatasetTree(unittest.TestCase):
@@ -104,7 +104,6 @@ class TestDatasetTree(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tree = DatasetJSONMappings(cls.TEST_FILE)
-
 
     def test_get_dataset(self):
 

@@ -111,8 +111,7 @@ class LocalVocabMappings(object):
     }
 
     __merged_attr = {
-        'AVHRR(NOAA-15,NOAA-16,NOAA-17,NOAA-18),MODIS(Aqua,Terra),'
-        'AATSR(ENVISAT)':
+        'AVHRR(NOAA-15,NOAA-16,NOAA-17,NOAA-18),MODIS(Aqua,Terra),AATSR(ENVISAT)':
             'NOAA-15,NOAA-16,NOAA-17,NOAA-18,Aqua,Terra,ENVISAT',
         'AVHRR(NOAA-15,NOAA-16,NOAA-17,NOAA-18)':
             'NOAA-15,NOAA-16,NOAA-17,NOAA-18',
@@ -147,17 +146,19 @@ class LocalVocabMappings(object):
         output = ''
         for scheme in cls.__mappings.keys():
             scheme_dict = cls.__mappings[scheme]
+
             if len(scheme_dict) > 0:
-                output = ('%s\nMappings for %s:\n' % (output, scheme))
-                for key in scheme_dict.keys():
-                    output = ('%s\tfrom\t %s\n\tto\t %s\n' %
-                              (output, key, scheme_dict[key]))
+                output = f'{output}\nMappings for {scheme}:\n'
+
+                for key in scheme_dict:
+                    output = f'{output}\tfrom\t {key}\n\tto\t {scheme_dict[key]}\n'
 
         if len(cls.__merged_attr) > 0:
-            output = ('%s\nMappings for merged attributes:\n' % (output))
+            output = f'{output}\nMappings for merged attributes:\n'
+
             for key in cls.__merged_attr.keys():
-                output = ('%s\tfrom\t %s\n\tto\t %s\n' %
-                          (output, key, cls.__merged_attr[key]))
+                output = f'{output}\tfrom\t {key}\n\tto\t {cls.__merged_attr[key]}\n'
+
         return output
 
     @classmethod
@@ -244,20 +245,27 @@ class UserVocabMappings(object):
 
         """
         output = ''
-        for scheme in self.__mappings.keys():
-            scheme_dict = self.__mappings[scheme]
-            if len(scheme_dict) > 0:
-                output = ('%s\nMappings for %s:\n' % (output, scheme))
-                for key in scheme_dict.keys():
-                    output = ('%s\tfrom\t %s\n\tto\t %s\n' %
-                              (output, key, scheme_dict[key]))
 
-        if len(self.__mappings["merged"]) > 0:
-            output = ('%s\nMappings for merged attributes:\n' % (output))
-            for key in self.__mappings["merged"].keys():
-                output = ('%s\tfrom\t %s\n\tto\t %s\n' %
-                          (output, key, self.__mappings["merged"][key]))
+        for scheme in self.__mappings:
+            scheme_dict = self.__mappings[scheme]
+
+            if len(scheme_dict) > 0:
+                output = f'{output}\nMappings for {scheme}:\n'
+
+                for key in scheme_dict:
+                    output = f'{output}\tfrom\t {key}\n\tto\t {scheme_dict[key]}\n'
+
+        if len(self.__mappings['merged']) > 0:
+            output = f'{output}\nMappings for merged attributes:\n'
+
+            for key in self.__mappings['merged']:
+                output = f'{output}\tfrom\t {key}\n\tto\t {self.__mappings["merged"][key]}\n'
+
         return output
+
+    @property
+    def has_merged_attr(self):
+        return bool(self.__mappings.get('merged'))
 
     def get_mapping(self, facet, term):
         """
@@ -271,20 +279,21 @@ class UserVocabMappings(object):
 
 
         """
-        if facet not in self.__mappings.keys():
-            # no mapping for this facet
+        # Check to see if there are any mappings for this facet
+        facet_mappings = self.__mappings.get(facet)
+
+        if not facet_mappings:
+            # No mapping for this facet
             return term
 
+        # Make sure that the term is lowercase
         term = term.lower()
-        for key in self.__mappings[facet].keys():
-            if term == key.lower():
-                return self.__mappings[facet][key].lower()
 
-        if facet == FREQUENCY:
-            # extra stuff for frequency
-            for key in self.__freq_start_with.keys():
-                if term.startswith(key.lower()):
-                    return self.__freq_start_with[key].lower()
+        # Loop the possible mappings and match the lowercase term against the
+        # lowercase key in the mapping
+        for key in facet_mappings:
+            if term == key.lower():
+                return facet_mappings[key].lower()
 
         return term
 
@@ -299,7 +308,9 @@ class UserVocabMappings(object):
 
     def split_attrib(self, attr):
         """
-        Split an attribute into its component bits.
+        In some cases, the attribute from the file is a merged list of many attributes.
+        This method maps a complex string to a simpler comma separated string
+        which can be used in the next steps of the code.
 
         @param attr(str) the attribute to split
 
@@ -307,11 +318,15 @@ class UserVocabMappings(object):
                 mapping was found.
 
         """
-        if not self.__mappings.get("merged"):
-            # no mappings for merged
-            return attr
-        if attr not in self.__mappings["merged"].keys():
-            # no mapping for this attr
-            return attr
-        return self.__mappings["merged"][attr]
+
+        # Check if there is a merged attribute in the mapping.
+        if self.has_merged_attr:
+            mapped_val = self.__mappings['merged'].get(attr)
+
+            # Return the mapped value, if there is one
+            if mapped_val:
+                return mapped_val
+
+        # Defaults to just returning the input string
+        return attr
 
