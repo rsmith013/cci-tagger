@@ -47,7 +47,7 @@ class Dataset(object):
         of files. When this parameter is set > 1, the file list is restricted
         to netCDF files.
         :param max_file_count: default: 0. How many netCDF files to try and scan (int)
-        :return:
+        :return: URIs for each facet (dict), Files mapped to DRS ID (dict)
         """
 
         # Dictionary of URIs which describe the dataset
@@ -69,12 +69,48 @@ class Dataset(object):
             return
 
         for file in file_list:
-            file_tags = self.get_file_tags(file)
+            file_tags = self.get_file_tags(filepath=file)
             dataset_uris.update(file_tags)
 
             self._update_drs_filelist(file_tags, drs_files, file)
 
         return dataset_uris, drs_files # URIs for MOLES, {} of files organised into datasets
+
+    def generate_ds_id(self, drs_facets):
+        """
+        Turn the drs labels into an identifier
+        :param drs_facets: Bag of labels
+        :return: ID
+        """
+
+        ds_id = self.DRS_ESACCI
+
+        for facet in constants.DRS_FACETS:
+
+            facet_value = drs_facets.get(facet)
+
+            if not facet_value:
+                print(f'Missing DRS facet: {facet}')
+                # TODO: Log message {dataset} {facet} value not found
+                return
+
+            else:
+                value = facet_value
+
+                facet_value = str(drs_facets[facet]).replace('.', '-')
+                facet_value = facet_value.replace(' ', '-')
+
+                if facet is constants.FREQUENCY:
+                    facet_value = facet_value.replace('month', 'mon')
+                    facet_value = facet_value.replace('year', 'yr')
+
+                ds_id = f'{ds_id}.{facet_value}'
+
+
+        # Add realisation
+        ds_id = f'{ds_id}.{self.dataset_json_mappings.get_dataset_realisation(self.dataset)}'
+
+        return ds_id
 
     def get_drs_labels(self, uris):
         """
@@ -126,7 +162,7 @@ class Dataset(object):
         self.MULTIPLATFORM = False
 
         # Get default tags
-        file_tags = self.dataset_defaults
+        file_tags = self.dataset_defaults.copy()
 
         # Get tags from filepath
         tags_from_filename = self._parse_file_name(filepath)
@@ -198,80 +234,82 @@ class Dataset(object):
             # Get the terms
             terms = mapped_labels.get(facet)
 
-            # Make sure input is a list
-            if type(terms) is str:
-                terms = [terms]
+            if terms:
+                # Make sure input is a list
+                if type(terms) is str:
+                    terms = [terms]
 
-            # Retrieve set of URIs. Put them in a set to remove duplicates
-            uris = set()
-            for term in terms:
+                # Retrieve set of URIs. Put them in a set to remove duplicates
+                uris = set()
+                for term in terms:
 
-                # Clean any leading/trailing whitespace
-                term = term.strip()
+                    # Clean any leading/trailing whitespace
+                    term = term.strip()
 
-                # Get the URI for the term
-                uri = self._get_term_uri(facet, term)
-                if uri:
-                    uris.add(uri)
+                    # Get the URI for the term
+                    uri = self._get_term_uri(facet, term)
+                    if uri:
+                        uris.add(uri)
 
-                # Add broader terms for processing level
-                if facet is constants.PROCESSING_LEVEL:
-                    broader_proc_level_uri = self._facets.get_broader_proc_level(uri)
+                    # Add broader terms for processing level
+                    if facet is constants.PROCESSING_LEVEL:
+                        broader_proc_level_uri = self._facets.get_broader_proc_level(uri)
 
-                    if broader_proc_level_uri:
-                        uri_bag[constants.BROADER_PROCESSING_LEVEL] = broader_proc_level_uri
+                        if broader_proc_level_uri:
+                            uri_bag[constants.BROADER_PROCESSING_LEVEL] = broader_proc_level_uri
 
-            if uris:
-                uri_bag[facet] = uris
+                if uris:
+                    uri_bag[facet] = uris
 
         # Metadata facets
         for facet in constants.ALLOWED_GLOBAL_ATTRS:
             terms = mapped_labels.get(facet)
 
-            # Make sure input is a list
-            if type(terms) is str:
-                terms = [terms]
+            if terms:
+                # Make sure input is a list
+                if type(terms) is str:
+                    terms = [terms]
 
-            uris = set()
-            for term in terms:
+                uris = set()
+                for term in terms:
 
-                # Strip any trailing/leading whitespace
-                term = term.strip()
+                    # Strip any trailing/leading whitespace
+                    term = term.strip()
 
-                # Ignore N/A values
-                if term == 'N/A':
-                    continue
+                    # Ignore N/A values
+                    if term == 'N/A':
+                        continue
 
-                # Get the URI from the vocab service
-                uri = self._get_term_uri(facet, term)
+                    # Get the URI from the vocab service
+                    uri = self._get_term_uri(facet, term)
 
-                if uri:
-                    uris.add(uri)
+                    if uri:
+                        uris.add(uri)
 
-                    if facet is constants.PLATFORM:
-                        # Add the broader terms
-                        uris.update(self._get_programme_group(uri))
+                        if facet is constants.PLATFORM:
+                            # Add the broader terms
+                            uris.update(self._get_programme_group(uri))
 
-                # If platform does not return a URI try to get platform programmes tags
-                elif facet is constants.PLATFORM:
-                    platform_tags = self._get_platform_as_programme(term)
-                    uris.update(platform_tags)
+                    # If platform does not return a URI try to get platform programmes tags
+                    elif facet is constants.PLATFORM:
+                        platform_tags = self._get_platform_as_programme(term)
+                        uris.update(platform_tags)
 
-                    # Update the multiplatform flag as we have added a group or
-                    # programme to this list. Even if that results in a single
-                    # URI, it encompasses > 1 platform
-                    self.MULTIPLATFORM = True
+                        # Update the multiplatform flag as we have added a group or
+                        # programme to this list. Even if that results in a single
+                        # URI, it encompasses > 1 platform
+                        self.MULTIPLATFORM = True
 
-                    if not platform_tags:
-                        # TODO: Add some kind of logging
+                        if not platform_tags:
+                            # TODO: Add some kind of logging
+                            pass
+
+                    else:
+                        # TODO: Add some kind of logging. The term has not generated any kind of URI
                         pass
 
-                else:
-                    # TODO: Add some kind of logging. The term has not generated any kind of URI
-                    pass
-
-            if uris:
-                uri_bag[facet] = uris
+                if uris:
+                    uri_bag[facet] = uris
 
         # Add product version
         if mapped_labels.get(constants.PRODUCT_VERSION):
@@ -279,41 +317,7 @@ class Dataset(object):
 
         return uri_bag
 
-    def _generate_ds_id(self, drs_facets):
-        """
-        Turn the drs labels into an identifier
-        :param drs_facets: Bag of labels
-        :return: ID
-        """
 
-        ds_id = self.DRS_ESACCI
-
-        for facet in constants.DRS_FACETS:
-
-            facet_value = drs_facets.get(facet)
-
-            if not facet_value:
-                print(f'Missing DRS facet: {facet}')
-                # TODO: Log message {dataset} {facet} value not found
-                return
-
-            else:
-                value = facet_value
-
-                facet_value = str(drs_facets[facet]).replace('.', '-')
-                facet_value = facet_value.replace(' ', '-')
-
-                if facet is constants.FREQUENCY:
-                    facet_value = facet_value.replace('month', 'mon')
-                    facet_value = facet_value.replace('year', 'yr')
-
-                ds_id = f'{ds_id}.{facet_value}'
-
-
-        # Add realisation
-        ds_id = f'{ds_id}.{self.dataset_json_mappings.get_dataset_realisation(self.dataset)}'
-
-        return ds_id
 
     @staticmethod
     def _get_data_from_filename1(file_segments):
@@ -598,9 +602,11 @@ class Dataset(object):
         :param drs_files: dictionary to store the state
         :param file: The file to add to the dataset
         """
+        # Convert file from pathlib to posix string
+        file = file.as_posix()
 
         labels = self.get_drs_labels(tags)
-        ds_id = self._generate_ds_id(labels)
+        ds_id = self.generate_ds_id(labels)
 
         # Create a value where the DRS cannot be created
         if not ds_id:
