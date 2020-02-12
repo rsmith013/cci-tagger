@@ -40,6 +40,15 @@ class Dataset(object):
         self.dataset_overrides = dataset_json_mappings.get_user_defined_overrides(dataset)
 
     def process_dataset(self, max_file_count=0):
+        """
+        Main entry point to process a dataset.
+
+        The max file count kwarg can be used for testing on a smaller subset
+        of files. When this parameter is set > 1, the file list is restricted
+        to netCDF files.
+        :param max_file_count: default: 0. How many netCDF files to try and scan (int)
+        :return:
+        """
 
         # Dictionary of URIs which describe the dataset
         dataset_uris = {}
@@ -48,7 +57,7 @@ class Dataset(object):
         drs_files = {}
 
         # Get a list of files in the dataset
-        file_list = self.get_dataset_files(max_file_count)
+        file_list = self._get_dataset_files(max_file_count)
 
         if self._verbosity >= 1:
             if max_file_count:
@@ -67,65 +76,12 @@ class Dataset(object):
 
         return dataset_uris, drs_files # URIs for MOLES, {} of files organised into datasets
 
-    def _update_drs_filelist(self, tags, drs_files, file):
-        """
-        Update the drs filelists
-        :param tags: URIs
-        :param drs_files: dictionary to store the state
-        :param file: The file to add to the dataset
-        """
-
-        labels = self.get_drs_labels(tags)
-        ds_id = self._generate_ds_id(labels)
-
-        # Create a value where the DRS cannot be created
-        if not ds_id:
-            ds_id = 'unknown_drs'
-
-        if ds_id in drs_files:
-            drs_files[ds_id].append(file)
-        else:
-            drs_files[ds_id] = [file]
-
-
-
-    @fpath_as_pathlib('filepath')
-    def get_file_tags(self, filepath):
-        """
-
-        :param file:
-        :return:
-        """
-        # Set the multi platform flag
-        self.MULTIPLATFORM = False
-
-        # Get default tags
-        file_tags = self.dataset_defaults
-
-        # Get tags from filepath
-        tags_from_filename = self._parse_file_name(filepath)
-        file_tags.update(tags_from_filename)
-
-        # Get tags from file metadata
-        tags_from_metadata = self._scan_file(filepath, file_tags.get(constants.PROCESSING_LEVEL))
-        file_tags.update(tags_from_metadata)
-
-        # Apply mappings
-        mapped_values = self.apply_mapping(file_tags)
-
-        # Apply any overrides
-        mapped_values = self.apply_overrides(mapped_values)
-
-        # convert tags to URIs
-        uris = self.convert_terms_to_uris(mapped_values)
-
-        return uris
-
     def get_drs_labels(self, uris):
         """
-        Convert the URIs into human readable labels for the DRS
-        :param uris: Dictionary of URIs for each facet
-        :return:
+        Convert the URIs into human readable labels for the DRS.
+
+        :param uris: URIs for each facet (dict)
+        :return: Label string for each facet (dict)
         """
 
         drs_labels = self._facets.process_bag(uris)
@@ -156,63 +112,42 @@ class Dataset(object):
 
         return drs_labels
 
-    def _scan_file(self, filename, proc_level):
+    @fpath_as_pathlib('filepath')
+    def get_file_tags(self, filepath):
         """
-        Scan the file and extract tags from the metadata
-        :param filename:
-        :return:
+        Extract the URIs from the vocab server which matches the terms
+        found in the file path and the file metadata.
+
+        The file must be a pathlib.Path object so is checked by a decorator.
+        :param file: Filepath (str | pathlib.Path)
+        :return: URIs (dict)
         """
-        processed_labels = {}
+        # Set the multi platform flag
+        self.MULTIPLATFORM = False
 
-        # File specific parser
-        handler = HandlerFactory.get_handler(filename.suffix)
+        # Get default tags
+        file_tags = self.dataset_defaults
 
-        if handler:
-            labels = handler(filename).extract_facet_labels(proc_level)
+        # Get tags from filepath
+        tags_from_filename = self._parse_file_name(filepath)
+        file_tags.update(tags_from_filename)
 
-            # Process file tags
-            processed_labels = self._process_file_attributes(labels)
+        # Get tags from file metadata
+        tags_from_metadata = self._scan_file(filepath, file_tags.get(constants.PROCESSING_LEVEL))
+        file_tags.update(tags_from_metadata)
 
-        return processed_labels
+        # Apply mappings
+        mapped_values = self._apply_mapping(file_tags)
 
-    def _process_file_attributes(self, file_attributes):
+        # Apply any overrides
+        mapped_values = self._apply_overrides(mapped_values)
 
-        for global_attr in constants.ALLOWED_GLOBAL_ATTRS:
-            # Get the file attribute for the given global attr
-            attr = file_attributes.get(global_attr)
+        # convert tags to URIs
+        uris = self._convert_terms_to_uris(mapped_values)
 
-            # If the global attribute does not exist for this file,
-            # Check defaults
-            # continue
-            if not attr:
+        return uris
 
-                # Check user defaults for a value in this field
-                if self.dataset_defaults.get(global_attr):
-                    attr = self.dataset_defaults.get(global_attr)
-                else:
-                    continue
-
-            # Get merged mapping fields
-            attr = self.dataset_json_mappings.get_merged_attribute(self.dataset, attr)
-
-            # Split based on separator
-            if global_attr is constants.PLATFORM and '<' in attr:
-                bits = attr.split(', ')
-
-            else:
-                # Can separate based on ; or ,
-                bits = re.split(r'[;,]{1}', attr)
-
-            # Deal with multiplatforms
-            if global_attr is constants.PLATFORM:
-                bits = self.split_multiplatforms(bits)
-
-            # Replace input attributes with output from scanning process
-            file_attributes[global_attr] = bits
-
-        return file_attributes
-
-    def apply_mapping(self, file_tags):
+    def _apply_mapping(self, file_tags):
         """
         Take set of file tags and map them based on user JSON files
 
@@ -224,42 +159,14 @@ class Dataset(object):
         for facet, values in file_tags.items():
 
             if type(values) is list:
-                mapped_values[facet] = [self.get_mapping(facet, val) for val in values]
+                mapped_values[facet] = [self._get_mapping(facet, val) for val in values]
 
             elif type(values) is str:
-                mapped_values[facet] = [self.get_mapping(facet, values)]
+                mapped_values[facet] = [self._get_mapping(facet, values)]
 
         return mapped_values
 
-    def get_mapping(self, facet, term):
-        """
-        Convert the term to lower case and get the mapped value from the
-        user JSON files. Will return the original term in lowercase if no
-        mapping is found.
-
-        :param facet: The facet to match against (string)
-        :param term: The term to be mapped (string)
-        :return: Mapped term or lowercase term (string)
-        """
-
-        # Make sure term is lowercase
-        term = term.lower()
-
-        # Check to see if there are any mappings for this facet in this dataset
-        facet_map = self.dataset_mappings.get(facet)
-
-        if facet_map:
-
-            # Loop through the possible mappings and match the lowercase
-            # term against he lowercase key in the mapping to remove
-            # ambiguity.
-            for key in facet_map:
-                if term == key.lower():
-                    return facet_map[key].lower()
-
-        return term
-
-    def apply_overrides(self, mapped_tags):
+    def _apply_overrides(self, mapped_tags):
         """
         Apply any hard overrides which have been defined in the JSON files.
         This will take it as is, so you will need to make sure that overrides are
@@ -275,7 +182,7 @@ class Dataset(object):
 
         return mapped_tags
 
-    def convert_terms_to_uris(self, mapped_labels):
+    def _convert_terms_to_uris(self, mapped_labels):
         """
         Get the terms which have been extracted from the file and turn them
         into a bag or URIs which have been validated by the vocab server.
@@ -372,40 +279,131 @@ class Dataset(object):
 
         return uri_bag
 
-    def _get_term_uri(self, facet, term):
+    def _generate_ds_id(self, drs_facets):
         """
-        Take the term and return the URI from the Vocab service
-        :param facet: global attribute, facet
-        :param term: The term to check against the vocab service
-        :return: The correct URI for the term
+        Turn the drs labels into an identifier
+        :param drs_facets: Bag of labels
+        :return: ID
         """
 
-        facet = facet.lower()
-        term_l = term.lower()
+        ds_id = self.DRS_ESACCI
 
-        # Check the pref labels
-        if term_l in self._facets.get_labels(facet):
-            return self._facets.get_labels(facet)[term_l].uri
+        for facet in constants.DRS_FACETS:
 
-        # Check the alt labels
-        elif term_l in self._facets.get_alt_labels(facet):
-            return self._facets.get_alt_labels(facet)[term_l].uri
+            facet_value = drs_facets.get(facet)
 
-    def _get_programme_group(self, term_uri):
-        # now add the platform programme and group
-        tags = []
+            if not facet_value:
+                print(f'Missing DRS facet: {facet}')
+                # TODO: Log message {dataset} {facet} value not found
+                return
 
-        programme = self._facets.get_platforms_programme(term_uri)
-        if programme:
-            programme_uri = self._get_term_uri(constants.PLATFORM_PROGRAMME, programme)
-            tags.append(programme_uri)
+            else:
+                value = facet_value
 
-            group = self._facets.get_programmes_group(programme_uri)
-            if group:
-                group_uri = self._get_term_uri(constants.PLATFORM_GROUP, group)
-                tags.append(group_uri)
+                facet_value = str(drs_facets[facet]).replace('.', '-')
+                facet_value = facet_value.replace(' ', '-')
 
-        return tags
+                if facet is constants.FREQUENCY:
+                    facet_value = facet_value.replace('month', 'mon')
+                    facet_value = facet_value.replace('year', 'yr')
+
+                ds_id = f'{ds_id}.{facet_value}'
+
+
+        # Add realisation
+        ds_id = f'{ds_id}.{self.dataset_json_mappings.get_dataset_realisation(self.dataset)}'
+
+        return ds_id
+
+    @staticmethod
+    def _get_data_from_filename1(file_segments):
+        """
+        Extract data from the file name of form 1.
+
+        @param file_segments (List(str)): file segments
+
+        @return a dict where:
+                key = facet name
+                value = file segment
+
+        """
+        return {
+            constants.PROCESSING_LEVEL: file_segments[2].split('_')[0],
+            constants.ECV: file_segments[2].split('_')[1],
+            constants.DATA_TYPE: file_segments[3],
+            constants.PRODUCT_STRING: file_segments[4]
+        }
+
+    @staticmethod
+    def _get_data_from_filename2(file_segments):
+        """
+        Extract data from the file name of form 2.
+
+        @param file_segments (List(str)): file segments
+
+        @return a dict where:
+                key = facet name
+                value = file segment
+
+        """
+        return {
+            constants.PROCESSING_LEVEL: file_segments[2],
+            constants.ECV: file_segments[1],
+            constants.DATA_TYPE: file_segments[3],
+            constants.PRODUCT_STRING: file_segments[4]
+        }
+
+    def _get_dataset_files(self, max_file_count):
+        """
+        Get files from the dataset. Will return a list including all file types
+        unless the max_file_count parameter > 0. This assumes you are testing and
+        are only interested in netCDF so will return the first n netCDF files
+
+        :param max_file_count: Used for testing. Max number of netCDF files. Default: 0
+        :return: list of files
+        """
+
+        path = pathlib.Path(self.dataset)
+
+        if max_file_count > 0:
+            # Only want a small number of netcdf files for testing
+            all_netcdf = path.glob('**/*.nc')
+
+            # Get first n
+            first_n = itertools.islice(all_netcdf, max_file_count)
+
+            return list(first_n)
+
+        # Return all files from the dataset recursively
+        return list(path.glob('**/*'))
+
+    def _get_mapping(self, facet, term):
+        """
+        Convert the term to lower case and get the mapped value from the
+        user JSON files. Will return the original term in lowercase if no
+        mapping is found.
+
+        :param facet: The facet to match against (string)
+        :param term: The term to be mapped (string)
+        :return: Mapped term or lowercase term (string)
+        """
+
+        # Make sure term is lowercase
+        term = term.lower()
+
+        # Check to see if there are any mappings for this facet in this dataset
+        facet_map = self.dataset_mappings.get(facet)
+
+        if facet_map:
+
+            # Loop through the possible mappings and match the lowercase
+            # term against he lowercase key in the mapping to remove
+            # ambiguity.
+            for key in facet_map:
+                if term == key.lower():
+                    return facet_map[key].lower()
+
+        return term
 
     def _get_platform_as_programme(self, platform):
         tags = []
@@ -431,31 +429,40 @@ class Dataset(object):
 
         return tags
 
-    @staticmethod
-    def split_multiplatforms(segments):
+    def _get_programme_group(self, term_uri):
+        # now add the platform programme and group
+        tags = []
+
+        programme = self._facets.get_platforms_programme(term_uri)
+        if programme:
+            programme_uri = self._get_term_uri(constants.PLATFORM_PROGRAMME, programme)
+            tags.append(programme_uri)
+
+            group = self._facets.get_programmes_group(programme_uri)
+            if group:
+                group_uri = self._get_term_uri(constants.PLATFORM_GROUP, group)
+                tags.append(group_uri)
+
+        return tags
+
+    def _get_term_uri(self, facet, term):
         """
-        Take a string like ERS-<1,2> and return
-        ['ERS-1','ERS-2']
-
-        :param segment: String
-        :return: list of components
+        Take the term and return the URI from the Vocab service
+        :param facet: global attribute, facet
+        :param term: The term to check against the vocab service
+        :return: The correct URI for the term
         """
-        split_segments = []
-        pattern = re.compile(r'(.*-)<(.*)>.*')
 
-        for segment in segments:
+        facet = facet.lower()
+        term_l = term.lower()
 
-            m = re.match(pattern, segment)
-            if m:
-                term = m.group(1)
-                values = m.group(2).split(',')
+        # Check the pref labels
+        if term_l in self._facets.get_labels(facet):
+            return self._facets.get_labels(facet)[term_l].uri
 
-                split_segments.extend([f'{term}{val}' for val in values])
-
-            else:
-                split_segments.append(segment)
-
-        return split_segments
+        # Check the alt labels
+        elif term_l in self._facets.get_alt_labels(facet):
+            return self._facets.get_alt_labels(facet)[term_l].uri
 
     def _parse_file_name(self,fpath):
         """
@@ -501,101 +508,105 @@ class Dataset(object):
         # TODO: Have some kind of logging procedure
         # There was an error, unable to extract any tags
         return {}
-    
-    @staticmethod
-    def _get_data_from_filename1(file_segments):
-        """
-        Extract data from the file name of form 1.
 
-        @param file_segments (List(str)): file segments
+    def _process_file_attributes(self, file_attributes):
 
-        @return a dict where:
-                key = facet name
-                value = file segment
+        for global_attr in constants.ALLOWED_GLOBAL_ATTRS:
+            # Get the file attribute for the given global attr
+            attr = file_attributes.get(global_attr)
 
-        """
-        return {
-            constants.PROCESSING_LEVEL: file_segments[2].split('_')[0],
-            constants.ECV: file_segments[2].split('_')[1],
-            constants.DATA_TYPE: file_segments[3],
-            constants.PRODUCT_STRING: file_segments[4]
-        }
+            # If the global attribute does not exist for this file,
+            # Check defaults
+            # continue
+            if not attr:
 
-    @staticmethod
-    def _get_data_from_filename2(file_segments):
-        """
-        Extract data from the file name of form 2.
+                # Check user defaults for a value in this field
+                if self.dataset_defaults.get(global_attr):
+                    attr = self.dataset_defaults.get(global_attr)
+                else:
+                    continue
 
-        @param file_segments (List(str)): file segments
+            # Get merged mapping fields
+            attr = self.dataset_json_mappings.get_merged_attribute(self.dataset, attr)
 
-        @return a dict where:
-                key = facet name
-                value = file segment
-
-        """
-        return {
-            constants.PROCESSING_LEVEL: file_segments[2],
-            constants.ECV: file_segments[1],
-            constants.DATA_TYPE: file_segments[3],
-            constants.PRODUCT_STRING: file_segments[4]
-        }
-
-    def get_dataset_files(self, max_file_count):
-        """
-        Get files from the dataset. Will return a list including all file types
-        unless the max_file_count parameter > 0. This assumes you are testing and
-        are only interested in netCDF so will return the first n netCDF files
-
-        :param max_file_count: Used for testing. Max number of netCDF files. Default: 0
-        :return: list of files
-        """
-
-        path = pathlib.Path(self.dataset)
-
-        if max_file_count > 0:
-            # Only want a small number of netcdf files for testing
-            all_netcdf = path.glob('**/*.nc')
-
-            # Get first n
-            first_n = itertools.islice(all_netcdf, max_file_count)
-
-            return list(first_n)
-
-        # Return all files from the dataset recursively
-        return list(path.glob('**/*'))
-
-    def _generate_ds_id(self, drs_facets):
-        """
-        Turn the drs labels into an identifier
-        :param drs_facets: Bag of labels
-        :return: ID
-        """
-
-        ds_id = self.DRS_ESACCI
-
-        for facet in constants.DRS_FACETS:
-
-            facet_value = drs_facets.get(facet)
-
-            if not facet_value:
-                print(f'Missing DRS facet: {facet}')
-                # TODO: Log message {dataset} {facet} value not found
-                return
+            # Split based on separator
+            if global_attr is constants.PLATFORM and '<' in attr:
+                bits = attr.split(', ')
 
             else:
-                value = facet_value
+                # Can separate based on ; or ,
+                bits = re.split(r'[;,]{1}', attr)
 
-                facet_value = str(drs_facets[facet]).replace('.', '-')
-                facet_value = facet_value.replace(' ', '-')
+            # Deal with multiplatforms
+            if global_attr is constants.PLATFORM:
+                bits = self._split_multiplatforms(bits)
 
-                if facet is constants.FREQUENCY:
-                    facet_value = facet_value.replace('month', 'mon')
-                    facet_value = facet_value.replace('year', 'yr')
+            # Replace input attributes with output from scanning process
+            file_attributes[global_attr] = bits
 
-                ds_id = f'{ds_id}.{facet_value}'
+        return file_attributes
 
+    def _scan_file(self, filename, proc_level):
+        """
+        Scan the file and extract tags from the metadata
+        :param filename:
+        :return:
+        """
+        processed_labels = {}
 
-        # Add realisation
-        ds_id = f'{ds_id}.{self.dataset_json_mappings.get_dataset_realisation(self.dataset)}'
+        # File specific parser
+        handler = HandlerFactory.get_handler(filename.suffix)
 
-        return ds_id
+        if handler:
+            labels = handler(filename).extract_facet_labels(proc_level)
+
+            # Process file tags
+            processed_labels = self._process_file_attributes(labels)
+
+        return processed_labels
+
+    @staticmethod
+    def _split_multiplatforms(segments):
+        """
+        Take a string like ERS-<1,2> and return
+        ['ERS-1','ERS-2']
+
+        :param segment: String
+        :return: list of components
+        """
+        split_segments = []
+        pattern = re.compile(r'(.*-)<(.*)>.*')
+
+        for segment in segments:
+
+            m = re.match(pattern, segment)
+            if m:
+                term = m.group(1)
+                values = m.group(2).split(',')
+
+                split_segments.extend([f'{term}{val}' for val in values])
+
+            else:
+                split_segments.append(segment)
+
+        return split_segments
+
+    def _update_drs_filelist(self, tags, drs_files, file):
+        """
+        Update the drs filelists
+        :param tags: URIs
+        :param drs_files: dictionary to store the state
+        :param file: The file to add to the dataset
+        """
+
+        labels = self.get_drs_labels(tags)
+        ds_id = self._generate_ds_id(labels)
+
+        # Create a value where the DRS cannot be created
+        if not ds_id:
+            ds_id = 'unknown_drs'
+
+        if ds_id in drs_files:
+            drs_files[ds_id].append(file)
+        else:
+            drs_files[ds_id] = [file]
