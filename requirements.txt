@@ -1,5 +1,10 @@
-SPARQLWrapper==1.7.6
-html5lib
-netCDF4
-configparser
-six
+anytree==2.8.0
+cftime==1.0.4.2
+git+https://github.com/cedadev/directory-tree.git#egg=directory-tree==0.1.0
+isodate==0.6.0
+netCDF4==1.5.3
+numpy==1.18.1
+pyparsing==2.4.6
+rdflib==4.2.2
+six==1.14.0
+SPARQLWrapper==1.8.5

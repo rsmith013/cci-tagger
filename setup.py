@@ -46,10 +46,8 @@ setup(
 
     # Adds dependencies
     install_requires=[
-        'SPARQLWrapper==1.7.6',
+        'SPARQLWrapper==1.8.5',
         'netCDF4',
-        'html5lib',
-        'configparser',
         'six'
     ],
 )
