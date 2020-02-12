@@ -13,6 +13,8 @@ import os
 import json
 from pathlib import Path
 
+# TODO: When loading all the JSON files. Flag up files which won't load and continue.
+
 
 class DatasetJSONMappings:
 
@@ -47,7 +49,11 @@ class DatasetJSONMappings:
         for file in json_files:
 
             with open(file) as json_input:
-                data = json.load(json_input)
+                try:
+                    data = json.load(json_input)
+                except json.decoder.JSONDecodeError:
+                    print(f'Error loading {file}')
+                    continue
 
                 for dataset in data.get('datasets',[]):
                     self._dataset_tree.add_child(dataset)
