@@ -13,8 +13,6 @@ import os
 import json
 from pathlib import Path
 
-# TODO: When loading all the JSON files. Flag up files which won't load and continue.
-
 
 class DatasetJSONMappings:
 
@@ -41,6 +39,7 @@ class DatasetJSONMappings:
 
         # Get list of all JSON files
         if json_dir:
+            # TODO: Fix issue where this can't handle non relative paths
             json_files = Path().glob(os.path.join(json_dir, '**/*.json'))
         else:
             json_files = []

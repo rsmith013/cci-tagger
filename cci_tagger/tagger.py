@@ -226,13 +226,13 @@ class ProcessDatasets(object):
             if tags:
                 self._write_moles_tags_out(ds, tags)
 
-    def _write_moles_tags_out(self, ds, uri):
+    def _write_moles_tags_out(self, ds, uris):
 
         if self.__suppress_fo:
             return
-
         else:
-            self.__file_csv.write(f'{ds},{uri}\n')
+            for uri in uris:
+                self.__file_csv.write(f'{ds},{uri}\n')
 
     def _write_json(self, drs):
         if self.__suppress_fo:

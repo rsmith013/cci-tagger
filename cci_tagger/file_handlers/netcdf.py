@@ -48,13 +48,13 @@ class NetcdfHandler(FileHandler):
         for global_attr in ALLOWED_GLOBAL_ATTRS:
 
             # TODO: Implement logging with different verbosity
-            if global_attr is FREQUENCY and self.is_level2(proc_level):
-                tags[FREQUENCY] = [LEVEL_2_FREQUENCY]
+            # if global_attr is FREQUENCY and self.is_level2(proc_level):
+            #     tags[FREQUENCY] = [LEVEL_2_FREQUENCY]
+            #
+            # else:
+            attr = self.nc_data.getncattr(global_attr)
 
-            else:
-                attr = self.nc_data.getncattr(global_attr)
-
-                tags[global_attr] = attr
+            tags[global_attr] = attr
 
         # Add product version
         product_version = self.get_product_version()

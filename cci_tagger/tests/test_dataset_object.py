@@ -12,7 +12,8 @@ from cci_tagger.dataset.dataset import Dataset
 from cci_tagger.facets import Facets
 from cci_tagger.dataset.dataset_tree import DatasetJSONMappings
 
-filepath = '/Users/vdn73631/Documents/dev/cci-tagger/cci_tagger/tests/ESACCI-SEASURFACESALINITY-L4-SSS-MERGED_OI_7DAY_RUNNINGMEAN_DAILY_25km-20120101-fv1.8.nc'
+# filepath = '/Users/vdn73631/Documents/dev/cci-tagger/cci_tagger/tests/ESACCI-SEASURFACESALINITY-L4-SSS-MERGED_OI_7DAY_RUNNINGMEAN_DAILY_25km-20120101-fv1.8.nc'
+filepath = '/Users/vdn73631/Documents/dev/cci-tagger/cci_tagger/tests/ESACCI-SEAICE-L2P-SITHICK-SIRAL_CRYOSAT2-NH-20160101-fv2.0.nc'
 
 facets = Facets()
 json_mappings = DatasetJSONMappings('test_json_files')
@@ -30,5 +31,5 @@ print(uris)
 labels = d.get_drs_labels(uris)
 print(labels)
 
-drs = d._generate_ds_id(labels)
+drs = d.generate_ds_id(labels)
 print(drs)

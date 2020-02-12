@@ -256,13 +256,23 @@ class Dataset(object):
                         broader_proc_level_uri = self._facets.get_broader_proc_level(uri)
 
                         if broader_proc_level_uri:
-                            uri_bag[constants.BROADER_PROCESSING_LEVEL] = broader_proc_level_uri
+                            uri_bag[constants.BROADER_PROCESSING_LEVEL] = {broader_proc_level_uri}
 
                 if uris:
                     uri_bag[facet] = uris
 
         # Metadata facets
         for facet in constants.ALLOWED_GLOBAL_ATTRS:
+
+            # If processing level is 2, FREQUENCY has a set value
+            if facet is constants.FREQUENCY:
+                proc_level = mapped_labels.get(constants.PROCESSING_LEVEL,[])
+                proc_test = [bool('2' in item) for item in proc_level]
+
+                if proc_level and any(proc_test):
+                    uri_bag[constants.FREQUENCY] = {constants.LEVEL_2_FREQUENCY}
+                    continue
+
             terms = mapped_labels.get(facet)
 
             if terms:
@@ -366,7 +376,7 @@ class Dataset(object):
         :param max_file_count: Used for testing. Max number of netCDF files. Default: 0
         :return: list of files
         """
-
+        # TODO: Seems to be getting directories and trying to scan them
         path = pathlib.Path(self.dataset)
 
         if max_file_count > 0:
