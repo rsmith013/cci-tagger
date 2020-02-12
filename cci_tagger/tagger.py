@@ -38,9 +38,8 @@ import netCDF4
 from cci_tagger.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM,\
     SENSOR, ECV, PLATFORM_PROGRAMME, PLATFORM_GROUP, PROCESSING_LEVEL,\
     PRODUCT_STRING, PRODUCT_VERSION, LEVEL_2_FREQUENCY,\
-    BROADER_PROCESSING_LEVEL
+    BROADER_PROCESSING_LEVEL, ALLOWED_GLOBAL_ATTRS
 from cci_tagger.facets import Facets
-from cci_tagger.mappings import LocalVocabMappings, UserVocabMappings
 from cci_tagger.settings import ERROR_FILE, ESGF_DRS_FILE, MOLES_TAGS_FILE,\
     MOLES_ESGF_MAPPING_FILE
 from cci_tagger.triple_store import TripleStore
@@ -105,7 +104,8 @@ class ProcessDatasets(object):
     # an instance of the facets class
     __facets = None
 
-    __allowed_net_cdf_attribs = [FREQUENCY, INSTITUTION, PLATFORM, SENSOR]
+    __moles_facets = [BROADER_PROCESSING_LEVEL, DATA_TYPE, ECV,
+                              PROCESSING_LEVEL, PRODUCT_STRING] + ALLOWED_GLOBAL_ATTRS
     __single_valued_facets = [BROADER_PROCESSING_LEVEL, DATA_TYPE, ECV,
                               PROCESSING_LEVEL, PRODUCT_STRING]
     __multi_valued_facet_labels = {
@@ -115,9 +115,8 @@ class ProcessDatasets(object):
         SENSOR: 'multi-sensor'
     }
 
-    def __init__(self, checksum=True, use_mapping=True, verbose=0,
-                 update_moles=False, suppress_file_output=False,
-                 json_data=None, json_directory=None):
+    def __init__(self, checksum=True, verbose=0, suppress_file_output=False,
+                 json_directory=None):
         """
         Initialise the ProcessDatasets class.
 
@@ -128,20 +127,8 @@ class ProcessDatasets(object):
 
         """
         self.__checksum = checksum
-        self.__use_mapping = use_mapping
         self.__verbose = verbose
-        self.__update_moles = update_moles
         self.__suppress_fo = suppress_file_output
-
-        if self.__update_moles:
-            try:
-                from tools.vocab_tools.tag_obs_with_vocab_terms import \
-                    tag_observation
-                self._tag_observation = tag_observation
-            except ImportError:
-                print('Oops. Looks like you have selected to write to MOLES '
-                      'but we cannot find the MOLES library')
-                exit(1)
 
         self.__facets = Facets()
         self.__file_drs = None
@@ -151,78 +138,6 @@ class ProcessDatasets(object):
         self.__error_messages = set()
         self.__ds_drs_mapping = set()
         self.__dataset_json_values = DatasetJSONMappings(json_directory)
-
-        self.__user_assigned_defaults, self.__user_assigned_defaults_uris = (
-            self._init_user_assigned_defaults(json_data))
-
-
-
-        if json_data and json_data.get("mappings"):
-            self.__user_mappings = UserVocabMappings(json_data.get("mappings"))
-        else:
-            self.__user_mappings = None
-
-    def _init_user_assigned_defaults(self, json_data):
-        # TODO: Need to make sure can get a dynamic initial set of URIs from
-        # TODO: the config files
-        if json_data is None or json_data.get("defaults") is None:
-            return {}, {}
-
-        tags = {}
-        tag_uris = {}
-        if json_data.get("defaults"):
-            properties = json_data.get("defaults")
-            defaults_source = "json file"
-
-        if self.__verbose >= 1:
-            print(f"Using defaults from {defaults_source}")
-            if self.__verbose >= 2:
-                for key, value in properties.items():
-                    print("\t{key}: {value}".format(key=key, value=value))
-
-        # validate the user values against data from the triple store
-        for key in properties.keys():
-            # get the values for a facet (property key)
-            try:
-                labels = self.__facets.get_labels((key.lower()))
-            except KeyError:
-                print(
-                    'ERROR "{key}" in {file} is not a valid facet value. '
-                    'Should be one of {facets}.'.format(
-                        key=key,
-                        file=defaults_source,
-                        facets=', '.join(
-                            sorted(self.__facets.get_facet_names())
-                        )
-                    )
-                )
-                exit(1)
-
-            if key in self.__multi_valued_facet_labels.keys():
-                tag_uris[key] = set()
-                values = properties[key].lower().split(',')
-
-                for value in values:
-                    value = value.strip().lower()
-                    self._check_property_value(
-                        value, labels.keys(), key, defaults_source)
-                    tag_uris[key].add(labels[value])
-
-                if len(values) > 1:
-                    tags[key] = self.__multi_valued_facet_labels[key]
-                else:
-                    tags[key] = values[0].strip().lower()
-
-            else:
-                value = properties[key].strip().lower()
-
-                self._check_property_value(
-                    value, labels.keys(), key, defaults_source)
-
-                tag_uris[key] = labels[properties[key].lower()]
-                tags[key] = value
-
-        return tags, tag_uris
 
     def _check_property_value(self, value, labels, facet, defaults_source):
         if value not in labels:
@@ -252,91 +167,61 @@ class ProcessDatasets(object):
                       "datasets" % (max_file_count, ds_len))
             else:
                 print("Processing %s datasets" % ds_len)
-        drs = {}
-        count = 0
+
+        # A sanity check to let you see what files are being included in each dataset
+        dataset_file_mapping = {}
 
         for dspath in sorted(datasets):
-            count = count + 1
-            ds = self.__dataset_json_values.get_dataset(dspath)
-            self._process_dataset(ds, count, drs, max_file_count)
+            dataset_id = self.__dataset_json_values.get_dataset(dspath)
+            dataset = Dataset(dataset_id, self.__dataset_json_values, self.__facets, self.__verbose)
 
-        self._write_json(drs)
+            dataset_uris, ds_file_map = dataset.process_dataset(max_file_count)
+
+            self._write_moles_tags(dataset_id, dataset_uris)
+
+            dataset_file_mapping.update(ds_file_map)
+
+        self._write_json(dataset_file_mapping)
 
         if len(self.__not_found_messages) > 0:
+            # TODO: Output a list of terms not in the vocab
             print("\nSUMMARY OF TERMS NOT IN THE VOCAB:\n")
             for message in sorted(self.__not_found_messages):
                 print(message)
 
         with open(ERROR_FILE, 'w') as f:
+            # TODO: Some kind of error framework
             for message in sorted(self.__error_messages):
                 f.write('%s\n' % message)
-
-        self._write_moles_drs_mapping()
 
         self._close_files()
 
     def get_file_tags(self, fpath):
         """
         Extracts the facet labels from the tags
+        USED BY THE FACET SCANNER FOR THE CCI PROJECT
         :param fpath: Path the file to scan
         :return: drs identifier (string), facet labels (dict)
         """
+        # TODO: SORT OUT HOW THE FACET SCANNER WORKS AND USES THIS INFORMATION
 
         # Get the dataset
         ds = self.__dataset_json_values.get_dataset(fpath)
 
-        # Get the vocab uris and DRS facets
-        net_cdf_drs, net_cdf_tags = self._get_tags(ds, fpath)
-
-        # Update the user defined defaults
-        drs_facets = net_cdf_drs
-        tags_ds = net_cdf_tags
+        dataset = Dataset(ds, self.__dataset_json_values, self.__facets, self.__verbose)
+        uris = dataset.get_file_tags(fpath)
 
         # Turn uris into human readable tags
-        tags = self.__facets.process_bag(tags_ds)
+        tags = self.__facets.process_bag(uris)
+
+        # Get DRS labels
+        drs_facets = dataset.get_drs_labels(tags)
 
         # Generate DRS id
         drs = self._generate_ds_id(ds, drs_facets)
 
         return drs, tags
 
-    def _get_tags(self, ds, fpath):
-        """
-        Takes the dataset and file path and generates tags from filepath and
-        file metadata.
-
-        :param ds: Dataset directory path
-        :param fpath: Full path to the file being processed
-        :return:
-        tuple (dict)
-            [0] Labels for the DRS facets
-            [1] Uris for the labels
-
-        """
-
-        # Get the default values for the drs_facets which relate to the
-        # specific dataset
-        drs_facets = self.__dataset_json_values.get_user_defined_defaults(ds)
-        uri_tags = {}
-
-        # Get tags from filename
-        net_cdf_drs, net_cdf_tags = self._parse_file_name(ds, fpath)
-
-        # Update tags
-        drs_facets.update(net_cdf_drs)
-        uri_tags.update(net_cdf_tags)
-
-        # Get tags from file metadata
-        net_cdf_drs, net_cdf_tags = self._scan_net_cdf_file(
-            fpath, ds, net_cdf_tags.get(PROCESSING_LEVEL))
-
-        # Update tags
-        drs_facets.update(net_cdf_drs)
-        uri_tags.update(net_cdf_tags)
-
-        # TODO: Handle overwrites
-
-        return drs_facets, uri_tags
 
     def _process_dataset(self, ds, count, drs, max_file_count):
         """
@@ -637,7 +522,7 @@ class ProcessDatasets(object):
 
         return drs
 
-    def _scan_net_cdf_file(self, fpath, ds, processing_level):
+    def _scan_net_scan_net_cdf_file_cdf_file(self, fpath, ds, processing_level):
         """
         Extract data from the net cdf file.
 
@@ -672,7 +557,7 @@ class ProcessDatasets(object):
                     TripleStore.get_pref_label(LEVEL_2_FREQUENCY))
                 tags[FREQUENCY] = [LEVEL_2_FREQUENCY]
 
-            elif global_attr.lower() in self.__allowed_net_cdf_attribs:
+            elif global_attr.lower() in ALLOWED_GLOBAL_ATTRS:
                 attr = nc.getncattr(global_attr)
 
                 a_drs, a_tags = self._process_file_atrib(
@@ -725,16 +610,6 @@ class ProcessDatasets(object):
         # Set up empty dictionaries to hold results
         drs = {}
         tags = {}
-
-        # Some attributes have been merged, lookup in mappings to see if there
-        # is a mapping between these merged fields and a simpler, comma separated
-        # string. Order should be Local mappings, custom user JSON.
-
-        if self.__use_mapping:
-            attr = LocalVocabMappings.split_attrib(attr)
-
-        if self.__user_mappings:
-            attr = self.__user_mappings.split_attrib(attr)
 
         # Split based on separator
         if global_attr == PLATFORM:
@@ -834,46 +709,7 @@ class ProcessDatasets(object):
                                       'in "%s"' % (ds, global_attr, value,
                                                    attr))
 
-    def _get_programme_group(self, term_uri):
-        # now add the platform programme and group
-        tags = []
 
-        programme = self.__facets.get_platforms_programme(term_uri)
-        if programme:
-            programme_uri = self._get_term_uri(PLATFORM_PROGRAMME, programme)
-            tags.append(programme_uri)
-
-
-            group = self.__facets.get_programmes_group(programme_uri)
-            if group:
-                group_uri = self._get_term_uri(PLATFORM_GROUP, group)
-                tags.append(group_uri)
-
-        return tags
-
-    def _get_platform_as_programme(self, platform):
-        tags = []
-
-        # check if the platform is really a platform programme
-        if platform in self.__facets.get_programme_labels():
-            programme_uri = self._get_term_uri(PLATFORM_PROGRAMME, platform)
-            tags.append(programme_uri)
-
-            try:
-                group = self.__facets.get_programmes_group(programme_uri)
-                group_uri = self._get_term_uri(PLATFORM_GROUP, group)
-                tags.append(group_uri)
-
-            except KeyError:
-                # not all programmes have groups
-                pass
-
-        # check if the platform is really a platform group
-        elif platform in self.__facets.get_group_labels():
-            group_uri = self._get_term_uri(PLATFORM_GROUP, platform)
-            tags.append(group_uri)
-
-        return tags
 
     def _generate_ds_id(self, ds, drs_facets):
 
@@ -935,57 +771,25 @@ class ProcessDatasets(object):
 
         return 'r1'
 
-    def _write_moles_tags(self, ds, drs):
+    def _write_moles_tags(self, ds, uris):
+        """
 
-        if self.__update_moles:
-            if self.__verbose >= 2:
-                print('Updating MOLES tags')
+        :param ds: Dataset (will be a file path)
+        :param uris: Dictionary of extracted tags as URIS to the vocab service
+        """
 
-        for value in self.__single_valued_facets:
-            try:
-                self._write_moles_tags_out(ds, drs[value])
-            except KeyError:
-                pass
-
-        for value in self.__multi_valued_facet_labels:
-            try:
-                for uri in drs[value]:
-                    self._write_moles_tags_out(ds, uri)
-
-            except KeyError:
-                pass
+        for facet in self.__moles_facets:
+            tags = uris.get(facet)
+            if tags:
+                self._write_moles_tags_out(ds, tags)
 
     def _write_moles_tags_out(self, ds, uri):
 
-        if self.__update_moles:
-            self._tag_observation(ds, uri, 'clipc_skos_vocab')
-
-        elif self.__suppress_fo:
+        if self.__suppress_fo:
             return
 
         else:
             self.__file_csv.write(f'{ds},{uri}\n')
-
-    def _write_moles_drs_mapping(self):
-        if self.__update_moles:
-            self._write_moles_drs_mapping_to_moles()
-        else:
-            self._write_moles_drs_mapping_to_file()
-
-    def _write_moles_drs_mapping_to_moles(self):
-        if self.__verbose >= 2:
-            print('Updating MOLES ESGF mapping')
-
-        from tools.esgf_tools.add_drs_datasets import add_mapping
-
-        for directory, drs_id, version in self.__ds_drs_mapping:
-            add_mapping(directory, drs_id, version)
-
-    def _write_moles_drs_mapping_to_file(self):
-        with open(MOLES_ESGF_MAPPING_FILE, 'w') as f:
-            for directory, drs_id, version in sorted(self.__ds_drs_mapping):
-
-                f.write(f'{directory},{drs_id}.{version}\n')
 
     def _write_json(self, drs):
         if self.__suppress_fo:
@@ -994,40 +798,13 @@ class ProcessDatasets(object):
         self.__file_drs.write(
             json.dumps(drs, sort_keys=True, indent=4, separators=(',', ': ')))
 
-    def _get_term_uri(self, facet, term):
-
-        facet = facet.lower()
-        term_l = self._convert_term(facet, term)
-
-        # Check the pref labels
-        if term_l in self.__facets.get_labels(facet):
-            return self.__facets.get_labels(facet)[term_l].uri
-
-        # Check the alt labels
-        elif term_l in self.__facets.get_alt_labels(facet):
-            return self.__facets.get_alt_labels(facet)[term_l].uri
-
-        return None
-
-    def _convert_term(self, facet, term):
-        # TODO: Make sure that this uses the dynamic mappings
-
-        term = str(term).lower()
-
-        if self.__user_mappings:
-            term = self.__user_mappings.get_mapping(facet, term)
-
-        if self.__use_mapping:
-            term = LocalVocabMappings.get_mapping(facet, term)
-        return term
 
     def _open_files(self, ):
         # Do not open files if suppress output is true
         if self.__suppress_fo:
             return
 
-        if not self.__update_moles:
-            self.__file_csv = open(MOLES_TAGS_FILE, 'w')
+        self.__file_csv = open(MOLES_TAGS_FILE, 'w')
 
         self.__file_drs = open(ESGF_DRS_FILE, 'w')
 
@@ -1035,7 +812,6 @@ class ProcessDatasets(object):
         if self.__suppress_fo:
             return
 
-        if not self.__update_moles:
-            self.__file_csv.close()
+        self.__file_csv.close()
 
         self.__file_drs.close()

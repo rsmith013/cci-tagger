@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 '''
 
-from cci_tagger.command_line_client import CCITaggerCommandLineClient
+# from cci_tagger.command_line_client import CCITaggerCommandLineClient
 
 
 __all__ = ['CCITaggerCommandLineClient']

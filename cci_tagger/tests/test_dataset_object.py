@@ -21,4 +21,14 @@ dataset = json_mappings.get_dataset(filepath)
 
 d = Dataset(dataset, json_mappings, facets)
 
-print(d.process_dataset(max_file_count=1))
+# print(d.process_dataset(max_file_count=1))
+
+
+uris = d.get_file_tags(filepath=filepath)
+print(uris)
+
+labels = d.get_drs_labels(uris)
+print(labels)
+
+drs = d._generate_ds_id(labels)
+print(drs)
