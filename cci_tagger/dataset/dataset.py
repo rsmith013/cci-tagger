@@ -169,8 +169,11 @@ class Dataset(object):
         file_tags.update(tags_from_filename)
 
         # Get tags from file metadata
-        tags_from_metadata = self._scan_file(filepath, file_tags.get(constants.PROCESSING_LEVEL))
-        file_tags.update(tags_from_metadata)
+        tags_from_metadata = self._scan_file(filepath, file_tags)
+
+        # Process file tags from the metadata for multivalues
+        processed_labels = self._process_file_attributes(tags_from_metadata)
+        file_tags.update(processed_labels)
 
         # Apply mappings
         mapped_values = self._apply_mapping(file_tags)
@@ -565,13 +568,14 @@ class Dataset(object):
 
         return file_attributes
 
-    def _scan_file(self, filename, proc_level):
+    def _scan_file(self, filename, file_tags):
         """
         Scan the file and extract tags from the metadata
         :param filename:
         :return:
         """
-        processed_labels = {}
+        labels = {}
+        proc_level = file_tags.get(constants.PROCESSING_LEVEL)
 
         # File specific parser
         handler = HandlerFactory.get_handler(filename.suffix)
@@ -579,10 +583,7 @@ class Dataset(object):
         if handler:
             labels = handler(filename).extract_facet_labels(proc_level)
 
-            # Process file tags
-            processed_labels = self._process_file_attributes(labels)
-
-        return processed_labels
+        return labels
 
     @staticmethod
     def _split_multiplatforms(segments):
