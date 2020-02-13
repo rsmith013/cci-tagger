@@ -9,11 +9,11 @@ __license__ = 'BSD - see LICENSE file in top-level package directory'
 __contact__ = 'richard.d.smith@stfc.ac.uk'
 
 import pathlib
-import itertools
 from cci_tagger import constants
 from cci_tagger.file_handlers.handler_factory import HandlerFactory
 import re
 from cci_tagger.utils import fpath_as_pathlib
+from cci_tagger.utils.snippets import get_file_subset
 
 
 class Dataset(object):
@@ -22,7 +22,7 @@ class Dataset(object):
     DRS_ESACCI = 'esacci'
     MULTIPLATFORM = False
 
-    def __init__(self, dataset, dataset_json_mappings, facets, verbosity=0, ):
+    def __init__(self, dataset, dataset_json_mappings, facets, verbosity=0):
         """
 
         :param dataset:
@@ -376,20 +376,25 @@ class Dataset(object):
         :param max_file_count: Used for testing. Max number of netCDF files. Default: 0
         :return: list of files
         """
-        # TODO: Seems to be getting directories and trying to scan them
         path = pathlib.Path(self.dataset)
+
+        # Can ask for all files because this returns a generator and has not done
+        # any work yet.
+        all_files = path.glob('**/*')
 
         if max_file_count > 0:
             # Only want a small number of netcdf files for testing
             all_netcdf = path.glob('**/*.nc')
 
-            # Get first n
-            first_n = itertools.islice(all_netcdf, max_file_count)
+            filelist = get_file_subset(all_netcdf, max_file_count)
 
-            return list(first_n)
+            if not filelist:
+                filelist = get_file_subset(all_files, max_file_count)
+
+            return filelist
 
         # Return all files from the dataset recursively
-        return list(path.glob('**/*'))
+        return [item for item in all_files if item.is_file()]
 
     def _get_mapping(self, facet, term):
         """
