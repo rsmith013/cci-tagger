@@ -626,7 +626,7 @@ class Dataset(object):
 
         # Create a value where the DRS cannot be created
         if not ds_id:
-            ds_id = 'unknown_drs'
+            ds_id = f'UNKNOWN_DRS - {self.dataset}'
 
         if ds_id in drs_files:
             drs_files[ds_id].append(file)
