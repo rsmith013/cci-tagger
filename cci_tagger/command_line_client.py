@@ -108,19 +108,15 @@ class CCITaggerCommandLineClient(object):
                   'datasets.')
         )
         group.add_argument(
-            '-j', '--json_datasets',
-            help=('use the json file for the list of datasets')
+            '-j', '--json_file',
+            help=('Use the JSON file to provide a list of datasets and also provide the mappings'
+                  'which are used by the tagging code. Useful to test datsets and specific mapping files')
         )
 
         parser.add_argument(
             '--file_count',
             help='how many .nt files to look at per dataset',
             type=int, default=0
-        )
-        parser.add_argument(
-            '--json_store',
-            help='Directory containing the JSON config files for each dataset',
-            required=True
         )
         parser.add_argument(
             '-v', '--verbose', action='count',
@@ -168,7 +164,13 @@ class CCITaggerCommandLineClient(object):
             print("You have not provided any datasets")
             sys.exit(0)
 
-        pds = ProcessDatasets(verbose=args.verbose, json_directory=args.json_store)
+        #TODO: Check that this works, both for single input and possible multiple inputs
+        if args.json_file:
+            json_file = [args.json_file]
+        else:
+            json_file = None
+
+        pds = ProcessDatasets(verbose=args.verbose, json_files=json_file)
         pds.process_datasets(datasets, args.file_count)
 
         if args.verbose >= 1:

@@ -36,7 +36,7 @@ from cci_tagger.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM,\
     ALLOWED_GLOBAL_ATTRS
 from cci_tagger.facets import Facets
 from cci_tagger.settings import ERROR_FILE, ESGF_DRS_FILE, MOLES_TAGS_FILE
-from cci_tagger.dataset.dataset_tree import DatasetJSONMappings
+from cci_tagger_json import DatasetJSONMappings
 from cci_tagger.dataset.dataset import Dataset
 
 
@@ -109,7 +109,7 @@ class ProcessDatasets(object):
     }
 
     def __init__(self, verbose=0, suppress_file_output=False,
-                 json_directory=None):
+                 json_files=None):
         """
         Initialise the ProcessDatasets class.
 
@@ -128,7 +128,7 @@ class ProcessDatasets(object):
         self._open_files()
         self.__not_found_messages = set()
         self.__error_messages = set()
-        self.__dataset_json_values = DatasetJSONMappings(json_directory)
+        self.__dataset_json_values = DatasetJSONMappings(json_files)
 
     def _check_property_value(self, value, labels, facet, defaults_source):
         if value not in labels:
