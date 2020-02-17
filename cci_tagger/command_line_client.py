@@ -109,6 +109,7 @@ class CCITaggerCommandLineClient(object):
         )
         group.add_argument(
             '-j', '--json_file',
+            action='append',
             help=('Use the JSON file to provide a list of datasets and also provide the mappings'
                   'which are used by the tagging code. Useful to test datsets and specific mapping files')
         )
@@ -147,8 +148,12 @@ class CCITaggerCommandLineClient(object):
             if args.verbose >= 1:
                 print(f"\n{start_time} STARTED")
 
-            json_data = read_json_file(args.json_file)
-            datasets = json_data.get("datasets")
+            datasets = []
+            for file in args.json_file:
+                json_data = read_json_file(file)
+
+                if json_data.get("datasets"):
+                    datasets.extend(json_data["datasets"])
 
         return datasets, args
 
@@ -160,13 +165,12 @@ class CCITaggerCommandLineClient(object):
         datasets, args = cls.parse_command_line()
 
         # Quit of there are no datasets
-        if datasets is None:
+        if not datasets:
             print("You have not provided any datasets")
             sys.exit(0)
 
-        #TODO: Check that this works, both for single input and possible multiple inputs
         if args.json_file:
-            json_file = [args.json_file]
+            json_file = args.json_file
         else:
             json_file = None
 
