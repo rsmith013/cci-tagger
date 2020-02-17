@@ -143,11 +143,11 @@ class CCITaggerCommandLineClient(object):
             datasets = get_datasets_from_file(args.file)
 
         # Given a json file, get the datasets from the datasets key
-        elif args.json_datasets is not None:
+        elif args.json_file is not None:
             if args.verbose >= 1:
                 print(f"\n{start_time} STARTED")
 
-            json_data = read_json_file(args.json_datasets)
+            json_data = read_json_file(args.json_file)
             datasets = json_data.get("datasets")
 
         return datasets, args
