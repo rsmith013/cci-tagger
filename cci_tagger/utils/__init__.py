@@ -9,3 +9,4 @@ __license__ = 'BSD - see LICENSE file in top-level package directory'
 __contact__ = 'richard.d.smith@stfc.ac.uk'
 
 from .decorators import fpath_as_pathlib
+from .snippets import TaggedDataset

@@ -8,6 +8,7 @@ __copyright__ = 'Copyright 2018 United Kingdom Research and Innovation'
 __license__ = 'BSD - see LICENSE file in top-level package directory'
 __contact__ = 'richard.d.smith@stfc.ac.uk'
 
+from collections import namedtuple
 
 def get_file_subset(path_gen, max_number):
     """
@@ -29,3 +30,6 @@ def get_file_subset(path_gen, max_number):
             break
 
     return filelist
+
+TaggedDataset = namedtuple('TaggedDataset', ['drs','labels','uris'])
+

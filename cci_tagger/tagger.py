@@ -38,6 +38,7 @@ from cci_tagger.facets import Facets
 from cci_tagger.conf.settings import ERROR_FILE, ESGF_DRS_FILE, MOLES_TAGS_FILE
 from cci_tagger_json import DatasetJSONMappings
 from cci_tagger.dataset.dataset import Dataset
+from cci_tagger.utils import TaggedDataset
 
 
 class ProcessDatasets(object):
@@ -139,6 +140,16 @@ class ProcessDatasets(object):
             exit(1)
         return True
 
+    def get_dataset(self, dspath):
+        """
+        Return a dataset object for the requested path
+        :param dspath: Path to the dataset
+        :return: Dataset
+        """
+
+        dataset_id = self.__dataset_json_values.get_dataset(dspath)
+        return Dataset(dataset_id, self.__dataset_json_values, self.__facets, self.__verbose)
+
     def process_datasets(self, datasets, max_file_count=0):
         """
         Loop through the datasets pulling out data from file names and from
@@ -164,12 +175,12 @@ class ProcessDatasets(object):
         dataset_file_mapping = {}
 
         for dspath in sorted(datasets):
-            dataset_id = self.__dataset_json_values.get_dataset(dspath)
-            dataset = Dataset(dataset_id, self.__dataset_json_values, self.__facets, self.__verbose)
+
+            dataset = self.get_dataset(dspath)
 
             dataset_uris, ds_file_map = dataset.process_dataset(max_file_count)
 
-            self._write_moles_tags(dataset_id, dataset_uris)
+            self._write_moles_tags(dataset.id, dataset_uris)
 
             dataset_file_mapping.update(ds_file_map)
 
@@ -195,12 +206,11 @@ class ProcessDatasets(object):
         :param fpath: Path the file to scan
         :return: drs identifier (string), facet labels (dict)
         """
-        # TODO: SORT OUT HOW THE FACET SCANNER WORKS AND USES THIS INFORMATION
 
         # Get the dataset
-        ds = self.__dataset_json_values.get_dataset(fpath)
+        dataset = self.get_dataset(fpath)
 
-        dataset = Dataset(ds, self.__dataset_json_values, self.__facets, self.__verbose)
+        # Get the URIs for the datset
         uris = dataset.get_file_tags(fpath)
 
         # Turn uris into human readable tags
@@ -212,7 +222,7 @@ class ProcessDatasets(object):
         # Generate DRS id
         drs = dataset.generate_ds_id(drs_facets, fpath)
 
-        return drs, tags
+        return TaggedDataset(drs, tags, uris)
 
     def _write_moles_tags(self, ds, uris):
         """

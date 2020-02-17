@@ -29,7 +29,7 @@ class Dataset(object):
         :param dataset_json_mappings:
         """
 
-        self.dataset = dataset
+        self.id = dataset
         self._verbosity = verbosity
         self._facets = facets
 
@@ -61,11 +61,11 @@ class Dataset(object):
 
         if self._verbosity >= 1:
             if max_file_count:
-                print(f'Dataset: {self.dataset}\n Processing {len(file_list)} files')
+                print(f'Dataset: {self.id}\n Processing {len(file_list)} files')
 
         # There are no files
         if not file_list:
-            print(f'WARNING: No files found for {self.dataset}')
+            print(f'WARNING: No files found for {self.id}')
             return
 
         for file in file_list:
@@ -111,7 +111,7 @@ class Dataset(object):
 
 
         # Add realisation
-        ds_id = f'{ds_id}.{self.dataset_json_mappings.get_dataset_realisation(self.dataset, filepath)}'
+        ds_id = f'{ds_id}.{self.dataset_json_mappings.get_dataset_realisation(self.id, filepath)}'
 
         return ds_id
 
@@ -382,7 +382,7 @@ class Dataset(object):
         :param max_file_count: Used for testing. Max number of netCDF files. Default: 0
         :return: list of files
         """
-        path = pathlib.Path(self.dataset)
+        path = pathlib.Path(self.id)
 
         # Can ask for all files because this returns a generator and has not done
         # any work yet.
@@ -413,8 +413,8 @@ class Dataset(object):
         :return: Mapped term or lowercase term (string)
         """
 
-        # Make sure term is lowercase
-        term = term.lower()
+        # Make sure term is lowercase and remove any whitespace
+        term = term.lower().strip()
 
         # Check to see if there are any mappings for this facet in this dataset
         facet_map = self.dataset_mappings.get(facet)
@@ -552,7 +552,7 @@ class Dataset(object):
                     continue
 
             # Get merged mapping fields
-            attr = self.dataset_json_mappings.get_merged_attribute(self.dataset, attr)
+            attr = self.dataset_json_mappings.get_merged_attribute(self.id, attr)
 
             # Split based on separator
             if global_attr is constants.PLATFORM and '<' in attr:
@@ -629,7 +629,7 @@ class Dataset(object):
 
         # Create a value where the DRS cannot be created
         if not ds_id:
-            ds_id = f'UNKNOWN_DRS - {self.dataset}'
+            ds_id = f'UNKNOWN_DRS - {self.id}'
 
         if ds_id in drs_files:
             drs_files[ds_id].append(file)
