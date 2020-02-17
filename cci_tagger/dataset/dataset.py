@@ -76,10 +76,14 @@ class Dataset(object):
 
         return dataset_uris, drs_files # URIs for MOLES, {} of files organised into datasets
 
-    def generate_ds_id(self, drs_facets):
+    def generate_ds_id(self, drs_facets, filepath):
         """
         Turn the drs labels into an identifier
+
         :param drs_facets: Bag of labels
+        :param filepath: Filepath of the file to generate ID for. Used to
+        match against filters.
+
         :return: ID
         """
 
@@ -95,7 +99,6 @@ class Dataset(object):
                 return
 
             else:
-                value = facet_value
 
                 facet_value = str(drs_facets[facet]).replace('.', '-')
                 facet_value = facet_value.replace(' ', '-')
@@ -108,7 +111,7 @@ class Dataset(object):
 
 
         # Add realisation
-        ds_id = f'{ds_id}.{self.dataset_json_mappings.get_dataset_realisation(self.dataset)}'
+        ds_id = f'{ds_id}.{self.dataset_json_mappings.get_dataset_realisation(self.dataset, filepath)}'
 
         return ds_id
 
@@ -622,7 +625,7 @@ class Dataset(object):
         file = file.as_posix()
 
         labels = self.get_drs_labels(tags)
-        ds_id = self.generate_ds_id(labels)
+        ds_id = self.generate_ds_id(labels, file)
 
         # Create a value where the DRS cannot be created
         if not ds_id:

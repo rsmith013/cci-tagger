@@ -210,7 +210,7 @@ class ProcessDatasets(object):
         drs_facets = dataset.get_drs_labels(tags)
 
         # Generate DRS id
-        drs = dataset.generate_ds_id(drs_facets)
+        drs = dataset.generate_ds_id(drs_facets, fpath)
 
         return drs, tags
 
