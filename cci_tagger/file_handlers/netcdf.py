@@ -39,7 +39,7 @@ class NetcdfHandler(FileHandler):
         except AttributeError:
             return
 
-        return attr
+        return str(attr)
 
     def extract_facet_labels(self, proc_level):
 
