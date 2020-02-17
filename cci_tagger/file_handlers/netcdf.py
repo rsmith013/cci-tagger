@@ -10,7 +10,7 @@ __contact__ = 'richard.d.smith@stfc.ac.uk'
 
 from .base import FileHandler
 import netCDF4
-from cci_tagger.constants import FREQUENCY, LEVEL_2_FREQUENCY, PRODUCT_VERSION, ALLOWED_GLOBAL_ATTRS
+from cci_tagger.conf.constants import PRODUCT_VERSION, ALLOWED_GLOBAL_ATTRS
 
 class NetcdfHandler(FileHandler):
 

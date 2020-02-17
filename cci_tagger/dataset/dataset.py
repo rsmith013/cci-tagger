@@ -9,7 +9,7 @@ __license__ = 'BSD - see LICENSE file in top-level package directory'
 __contact__ = 'richard.d.smith@stfc.ac.uk'
 
 import pathlib
-from cci_tagger import constants
+from cci_tagger.conf import constants
 from cci_tagger.file_handlers.handler_factory import HandlerFactory
 import re
 from cci_tagger.utils import fpath_as_pathlib
@@ -269,7 +269,7 @@ class Dataset(object):
 
             # If processing level is 2, FREQUENCY has a set value
             if facet is constants.FREQUENCY:
-                proc_level = mapped_labels.get(constants.PROCESSING_LEVEL,[])
+                proc_level = mapped_labels.get(constants.PROCESSING_LEVEL, [])
                 proc_test = [bool('2' in item) for item in proc_level]
 
                 if proc_level and any(proc_test):

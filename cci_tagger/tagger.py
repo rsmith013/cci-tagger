@@ -31,11 +31,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import json
 
-from cci_tagger.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM,\
+from cci_tagger.conf.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM,\
     SENSOR, ECV, PROCESSING_LEVEL, PRODUCT_STRING, BROADER_PROCESSING_LEVEL,\
     ALLOWED_GLOBAL_ATTRS
 from cci_tagger.facets import Facets
-from cci_tagger.settings import ERROR_FILE, ESGF_DRS_FILE, MOLES_TAGS_FILE
+from cci_tagger.conf.settings import ERROR_FILE, ESGF_DRS_FILE, MOLES_TAGS_FILE
 from cci_tagger_json import DatasetJSONMappings
 from cci_tagger.dataset.dataset import Dataset
 
