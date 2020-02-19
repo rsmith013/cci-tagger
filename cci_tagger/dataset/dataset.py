@@ -35,6 +35,12 @@ class Dataset(object):
         self.id = dataset
         self._facets = facets
 
+        # File listing for the DRS datasets
+        self.file_map = {}
+
+        # Store all the tags which come from the dataset
+        self.dataset_uris = {}
+
         self.not_found_messages = set()
 
         # JSON file loader
@@ -54,12 +60,6 @@ class Dataset(object):
         :return: URIs for each facet (dict), Files mapped to DRS ID (dict)
         """
 
-        # Dictionary of URIs which describe the dataset
-        dataset_uris = {}
-
-        # File listing for the DRS datasets
-        drs_files = {}
-
         # Get a list of files in the dataset
         file_list = self._get_dataset_files(max_file_count)
 
@@ -72,11 +72,11 @@ class Dataset(object):
 
         for file in file_list:
             file_tags = self.get_file_tags(filepath=file)
-            dataset_uris.update(file_tags)
+            self._update_dataset_uris(file_tags)
 
-            self._update_drs_filelist(file_tags, drs_files, file)
+            self._update_drs_filelist(file_tags, file)
 
-        return dataset_uris, drs_files # URIs for MOLES, {} of files organised into datasets
+        return self.dataset_uris, self.file_map # URIs for MOLES, {} of files organised into datasets
 
     def generate_ds_id(self, drs_facets, filepath):
         """
@@ -627,7 +627,21 @@ class Dataset(object):
 
         return split_segments
 
-    def _update_drs_filelist(self, tags, drs_files, file):
+    def _update_dataset_uris(self, tags):
+        """
+        Update the set containing all the URIs extracted from the dataset
+
+        :param tags: (dict) URI tags
+        """
+
+        for facet, values in tags.items():
+
+            if facet in self.dataset_uris:
+                self.dataset_uris[facet].update(values)
+            else:
+                self.dataset_uris[facet] = set(values)
+
+    def _update_drs_filelist(self, tags, file):
         """
         Update the drs filelists
         :param tags: URIs
@@ -644,7 +658,7 @@ class Dataset(object):
         if not ds_id:
             ds_id = f'UNKNOWN_DRS - {self.id}'
 
-        if ds_id in drs_files:
-            drs_files[ds_id].append(file)
+        if ds_id in self.file_map:
+            self.file_map[ds_id].append(file)
         else:
-            drs_files[ds_id] = [file]
+            self.file_map[ds_id] = [file]

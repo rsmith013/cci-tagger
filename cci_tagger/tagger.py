@@ -31,11 +31,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import json
 
-from cci_tagger.conf.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM,\
-    SENSOR, ECV, PROCESSING_LEVEL, PRODUCT_STRING, BROADER_PROCESSING_LEVEL,\
-    ALLOWED_GLOBAL_ATTRS
+from cci_tagger.conf.constants import ALLOWED_GLOBAL_ATTRS, SINGLE_VALUE_FACETS
 from cci_tagger.facets import Facets
-from cci_tagger.conf.settings import LOG_FORMAT, ESGF_DRS_FILE, MOLES_TAGS_FILE
+from cci_tagger.conf.settings import ESGF_DRS_FILE, MOLES_TAGS_FILE
 from cci_tagger_json import DatasetJSONMappings
 from cci_tagger.dataset.dataset import Dataset
 from cci_tagger.utils import TaggedDataset
@@ -98,16 +96,7 @@ class ProcessDatasets(object):
     # an instance of the facets class
     __facets = None
 
-    __moles_facets = [BROADER_PROCESSING_LEVEL, DATA_TYPE, ECV,
-                              PROCESSING_LEVEL, PRODUCT_STRING] + ALLOWED_GLOBAL_ATTRS
-    __single_valued_facets = [BROADER_PROCESSING_LEVEL, DATA_TYPE, ECV,
-                              PROCESSING_LEVEL, PRODUCT_STRING]
-    __multi_valued_facet_labels = {
-        FREQUENCY: 'multi-frequency',
-        INSTITUTION: 'multi-institution',
-        PLATFORM: 'multi-platform',
-        SENSOR: 'multi-sensor'
-    }
+    __moles_facets = SINGLE_VALUE_FACETS + ALLOWED_GLOBAL_ATTRS
 
     def __init__(self, suppress_file_output=False,
                  json_files=None):
