@@ -14,6 +14,9 @@ from cci_tagger.file_handlers.handler_factory import HandlerFactory
 import re
 from cci_tagger.utils import fpath_as_pathlib
 from cci_tagger.utils.snippets import get_file_subset
+import logging
+
+logger = logging.getLogger(__file__)
 
 
 class Dataset(object):
@@ -22,7 +25,7 @@ class Dataset(object):
     DRS_ESACCI = 'esacci'
     MULTIPLATFORM = False
 
-    def __init__(self, dataset, dataset_json_mappings, facets, verbosity=0):
+    def __init__(self, dataset, dataset_json_mappings, facets):
         """
 
         :param dataset:
@@ -30,8 +33,9 @@ class Dataset(object):
         """
 
         self.id = dataset
-        self._verbosity = verbosity
         self._facets = facets
+
+        self.not_found_messages = set()
 
         # JSON file loader
         self.dataset_json_mappings = dataset_json_mappings
@@ -59,13 +63,11 @@ class Dataset(object):
         # Get a list of files in the dataset
         file_list = self._get_dataset_files(max_file_count)
 
-        if self._verbosity >= 1:
-            if max_file_count:
-                print(f'Dataset: {self.id}\n Processing {len(file_list)} files')
+        logger.info(f'Dataset: {self.id}\n Processing {len(file_list)} files')
 
         # There are no files
         if not file_list:
-            print(f'WARNING: No files found for {self.id}')
+            logger.error(f'No files found for {self.id}')
             return
 
         for file in file_list:
@@ -94,8 +96,7 @@ class Dataset(object):
             facet_value = drs_facets.get(facet)
 
             if not facet_value:
-                print(f'Missing DRS facet: {facet}')
-                # TODO: Log message {dataset} {facet} value not found
+                logger.error(f'Missing DRS facet: {facet} in {self.id}' )
                 return
 
             else:
@@ -256,6 +257,8 @@ class Dataset(object):
                     uri = self._get_term_uri(facet, term)
                     if uri:
                         uris.add(uri)
+                    else:
+                        self._log_attr_not_found(facet, term)
 
                     # Add broader terms for processing level
                     if facet is constants.PROCESSING_LEVEL:
@@ -308,21 +311,22 @@ class Dataset(object):
 
                     # If platform does not return a URI try to get platform programmes tags
                     elif facet is constants.PLATFORM:
-                        platform_tags = self._get_platform_as_programme(term)
-                        uris.update(platform_tags)
+                        programme_tags = self._get_platform_as_programme(term)
+                        if programme_tags:
 
-                        # Update the multiplatform flag as we have added a group or
-                        # programme to this list. Even if that results in a single
-                        # URI, it encompasses > 1 platform
-                        self.MULTIPLATFORM = True
+                            # Update the multi-platform flag as we have added a group or
+                            # programme to this list. Even if that results in a single
+                            # URI, it encompasses > 1 platform
+                            self.MULTIPLATFORM = True
+                            uris.update(programme_tags)
 
-                        if not platform_tags:
-                            # TODO: Add some kind of logging
-                            pass
+                        else:
+                            # Programme tags not found for term
+                            self._log_attr_not_found(facet, term)
 
                     else:
-                        # TODO: Add some kind of logging. The term has not generated any kind of URI
-                        pass
+                        # URI not found for term
+                        self._log_attr_not_found(facet, term)
 
                 if uris:
                     uri_bag[facet] = uris
@@ -332,7 +336,6 @@ class Dataset(object):
             uri_bag[constants.PRODUCT_VERSION] = mapped_labels[constants.PRODUCT_VERSION]
 
         return uri_bag
-
 
 
     @staticmethod
@@ -489,7 +492,18 @@ class Dataset(object):
         elif term_l in self._facets.get_alt_labels(facet):
             return self._facets.get_alt_labels(facet)[term_l].uri
 
-    def _parse_file_name(self,fpath):
+    def _log_attr_not_found(self, facet, term):
+        """
+        Create a log and record the term not found in the vocab server
+        This is used to create a report of all the terms not in the vocab server
+
+        :param facet: (str) Facet being processed
+        :param term: (str) term being processed
+        """
+        self.not_found_messages.add(f'{facet}: {term}')
+        logger.error(f'Invalid value: {term} in dataset: {self.id} for attribute: {facet}')
+
+    def _parse_file_name(self, fpath):
         """
         Extract data from the file name.
 
@@ -517,11 +531,10 @@ class Dataset(object):
 
         """
 
-        path_facet_bits = fpath.parts
-        file_segments = path_facet_bits[-1].split('-')
+        file_segments = fpath.name.split('-')
 
-        # TODO: Have some kind of logging procedure
         if len(file_segments) < 5:
+            logger.error(f'Invalid filename format in dataset: {self.id} for file {fpath.name}')
             return {}
 
         if file_segments[1] == self.ESACCI:
@@ -530,8 +543,8 @@ class Dataset(object):
         elif file_segments[0] == self.ESACCI:
             return self._get_data_from_filename2(file_segments)
 
-        # TODO: Have some kind of logging procedure
         # There was an error, unable to extract any tags
+        logger.error(f'Invalid filename format in dataset: {self.id} for file {fpath.name}')
         return {}
 
     def _process_file_attributes(self, file_attributes):

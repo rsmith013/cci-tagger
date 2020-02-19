@@ -35,8 +35,25 @@ from datetime import datetime
 import json
 import sys
 import time
+import logging
+import verboselogs
 
 from cci_tagger.tagger import ProcessDatasets
+
+logger = logging.getLogger()
+
+def get_logging_level(verbosity):
+
+    map = {
+        1: logging.INFO,
+        2: verboselogs.VERBOSE,
+        3: logging.DEBUG
+    }
+
+    if verbosity > max(map):
+        verbosity = max(map)
+
+    return map.get(verbosity,logging.ERROR)
 
 
 def get_datasets_from_file(file_name):
@@ -128,25 +145,21 @@ class CCITaggerCommandLineClient(object):
         args = parser.parse_args()
         datasets = None
 
+        # Set logging level
+        logger.setLevel(get_logging_level(args.verbose))
+
         start_time = time.strftime("%H:%M:%S")
 
         # Read datasets from the command line
         if args.dataset is not None:
-            if args.verbose >= 1:
-                print(f"\n{start_time} STARTED")
-                print("Processing {args.dataset}")
             datasets = {args.dataset}
 
         # Read list of datasets from a file
         elif args.file is not None:
-            if args.verbose >= 1:
-                print(f"\n{start_time} STARTED")
             datasets = get_datasets_from_file(args.file)
 
         # Given a json file, get the datasets from the datasets key
         elif args.json_file is not None:
-            if args.verbose >= 1:
-                print(f"\n{start_time} STARTED")
 
             datasets = []
             for file in args.json_file:
@@ -154,6 +167,12 @@ class CCITaggerCommandLineClient(object):
 
                 if json_data.get("datasets"):
                     datasets.extend(json_data["datasets"])
+
+        # Print start time based on verbosity
+        if logger.level >= logging.INFO:
+            print(f"\n{start_time} STARTED")
+            if args.dataset:
+                print(f'Processing {args.dataset}')
 
         return datasets, args
 
@@ -166,7 +185,7 @@ class CCITaggerCommandLineClient(object):
 
         # Quit of there are no datasets
         if not datasets:
-            print("You have not provided any datasets")
+            print('You have not provided any datasets')
             sys.exit(0)
 
         if args.json_file:
@@ -174,16 +193,16 @@ class CCITaggerCommandLineClient(object):
         else:
             json_file = None
 
-        pds = ProcessDatasets(verbose=args.verbose, json_files=json_file)
+        pds = ProcessDatasets(verbosity=logger.level, json_files=json_file)
         pds.process_datasets(datasets, args.file_count)
 
-        if args.verbose >= 1:
-            print("%s FINISHED\n\n" % (time.strftime("%H:%M:%S")))
+        if logger.level >= logging.INFO:
+            print(f'{time.strftime("%H:%M:%S")} FINISHED\n\n')
             end_time = datetime.now()
             time_diff = end_time - start_time
             hours, remainder = divmod(time_diff.seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-            print('Time taken %02d:%02d:%02d' % (hours, minutes, seconds))
+            print(f'Time taken {hours:02d}:{minutes:02d}:{seconds:02d}')
 
         exit(0)
 

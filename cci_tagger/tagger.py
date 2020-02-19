@@ -39,6 +39,20 @@ from cci_tagger.conf.settings import ERROR_FILE, ESGF_DRS_FILE, MOLES_TAGS_FILE
 from cci_tagger_json import DatasetJSONMappings
 from cci_tagger.dataset.dataset import Dataset
 from cci_tagger.utils import TaggedDataset
+import logging
+import verboselogs
+
+
+verboselogs.install()
+logger = logging.getLogger(__file__)
+
+# Set up ERROR file log handler
+fh = logging.FileHandler(ERROR_FILE)
+fh.setLevel(logging.ERROR)
+LOG_FORMATTER = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(LOG_FORMATTER)
+
+logger.addHandler(fh)
 
 
 class ProcessDatasets(object):
@@ -109,7 +123,7 @@ class ProcessDatasets(object):
         SENSOR: 'multi-sensor'
     }
 
-    def __init__(self, verbose=0, suppress_file_output=False,
+    def __init__(self, verbosity=logging.ERROR, suppress_file_output=False,
                  json_files=None):
         """
         Initialise the ProcessDatasets class.
@@ -120,7 +134,12 @@ class ProcessDatasets(object):
         @param verbose (int): increase output verbosity
 
         """
-        self.__verbose = verbose
+        # Set up console logger
+        ch = logging.StreamHandler()
+        ch.setLevel(verbosity)
+        ch.setFormatter(LOG_FORMATTER)
+        logger.addHandler(ch)
+
         self.__suppress_fo = suppress_file_output
 
         self.__facets = Facets()
@@ -148,7 +167,7 @@ class ProcessDatasets(object):
         """
 
         dataset_id = self.__dataset_json_values.get_dataset(dspath)
-        return Dataset(dataset_id, self.__dataset_json_values, self.__facets, self.__verbose)
+        return Dataset(dataset_id, self.__dataset_json_values, self.__facets)
 
     def process_datasets(self, datasets, max_file_count=0):
         """
@@ -164,15 +183,11 @@ class ProcessDatasets(object):
         """
 
         ds_len = len(datasets)
-        if self.__verbose >= 1:
-            if max_file_count > 0:
-                print("Processing a maximum of %s files for each of %s "
-                      "datasets" % (max_file_count, ds_len))
-            else:
-                print("Processing %s datasets" % ds_len)
+        logger.info(f'Processing a maximum of {max_file_count if max_file_count > 0 else "unlimited"} files for each of {ds_len} datasets')
 
         # A sanity check to let you see what files are being included in each dataset
         dataset_file_mapping = {}
+        terms_not_found = set()
 
         for dspath in sorted(datasets):
 
@@ -184,18 +199,14 @@ class ProcessDatasets(object):
 
             dataset_file_mapping.update(ds_file_map)
 
+            terms_not_found.update(dataset.not_found_messages)
+
         self._write_json(dataset_file_mapping)
 
-        if len(self.__not_found_messages) > 0:
-            # TODO: Output a list of terms not in the vocab
+        if len(terms_not_found) > 0:
             print("\nSUMMARY OF TERMS NOT IN THE VOCAB:\n")
-            for message in sorted(self.__not_found_messages):
+            for message in sorted(terms_not_found):
                 print(message)
-
-        with open(ERROR_FILE, 'w') as f:
-            # TODO: Some kind of error framework
-            for message in sorted(self.__error_messages):
-                f.write('%s\n' % message)
 
         self._close_files()
 
@@ -250,7 +261,6 @@ class ProcessDatasets(object):
 
         self.__file_drs.write(
             json.dumps(drs, sort_keys=True, indent=4, separators=(',', ': ')))
-
 
     def _open_files(self, ):
         # Do not open files if suppress output is true

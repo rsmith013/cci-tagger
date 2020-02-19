@@ -11,12 +11,23 @@ __contact__ = 'richard.d.smith@stfc.ac.uk'
 from .base import FileHandler
 import netCDF4
 from cci_tagger.conf.constants import PRODUCT_VERSION, ALLOWED_GLOBAL_ATTRS
+import logging
+
+logger = logging.getLogger(__file__)
+
 
 class NetcdfHandler(FileHandler):
 
     def __init__(self, filepath):
 
-        self.nc_data = netCDF4.Dataset(filepath)
+        self.tags = {}
+        self.nc_data = None
+        self.filepath = filepath.as_posix()
+
+        try:
+            self.nc_data = netCDF4.Dataset(filepath)
+        except Exception as e:
+            logger.error(f'Read error. Could not open file: {filepath} with error: {e}')
 
     @staticmethod
     def is_level2(proc_level):
@@ -43,23 +54,27 @@ class NetcdfHandler(FileHandler):
 
     def extract_facet_labels(self, proc_level):
 
-        tags = {}
+        if self.nc_data:
+            logger.verbose(f'GLOBAL ATTRS for {self.filepath}')
 
-        for global_attr in ALLOWED_GLOBAL_ATTRS:
+            for global_attr in ALLOWED_GLOBAL_ATTRS:
+                if global_attr in self.nc_data.ncattrs():
+                    attr = self.nc_data.getncattr(global_attr)
 
-            # TODO: Implement logging with different verbosity
-            if global_attr in self.nc_data.ncattrs():
-                attr = self.nc_data.getncattr(global_attr)
+                    self.tags[global_attr] = attr
 
-                tags[global_attr] = attr
+                    # Verbose logging
+                    logger.verbose(f'{global_attr}={attr}')
+                else:
+                    logger.warning(f'Required attr {global_attr} not found in {self.filepath}')
 
-        # Add product version
-        product_version = self.get_product_version()
+            # Add product version
+            product_version = self.get_product_version()
 
-        if product_version:
-            tags[PRODUCT_VERSION] = product_version
+            if product_version:
+                self.tags[PRODUCT_VERSION] = product_version
 
-        return tags
+        return self.tags
 
 
 
