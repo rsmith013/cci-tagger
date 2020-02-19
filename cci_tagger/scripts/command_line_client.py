@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 from datetime import datetime
+from cci_tagger.conf.settings import ERROR_FILE, LOG_FORMAT
 import json
 import sys
 import time
@@ -40,7 +41,16 @@ import verboselogs
 
 from cci_tagger.tagger import ProcessDatasets
 
+verboselogs.install()
 logger = logging.getLogger()
+
+# Set up ERROR file log handler
+fh = logging.FileHandler(ERROR_FILE)
+fh.setLevel(logging.ERROR)
+LOG_FORMATTER = logging.Formatter(LOG_FORMAT)
+fh.setFormatter(LOG_FORMATTER)
+
+logger.addHandler(fh)
 
 def get_logging_level(verbosity):
 
@@ -148,6 +158,14 @@ class CCITaggerCommandLineClient(object):
         # Set logging level
         logger.setLevel(get_logging_level(args.verbose))
 
+        # Set up console logger
+        ch = logging.StreamHandler()
+        ch.setLevel(logger.level)
+        ch.setFormatter(LOG_FORMATTER)
+
+        logger.addHandler(ch)
+
+
         start_time = time.strftime("%H:%M:%S")
 
         # Read datasets from the command line
@@ -169,7 +187,7 @@ class CCITaggerCommandLineClient(object):
                     datasets.extend(json_data["datasets"])
 
         # Print start time based on verbosity
-        if logger.level >= logging.INFO:
+        if logger.level <= logging.INFO:
             print(f"\n{start_time} STARTED")
             if args.dataset:
                 print(f'Processing {args.dataset}')
@@ -193,11 +211,11 @@ class CCITaggerCommandLineClient(object):
         else:
             json_file = None
 
-        pds = ProcessDatasets(verbosity=logger.level, json_files=json_file)
+        pds = ProcessDatasets(json_files=json_file)
         pds.process_datasets(datasets, args.file_count)
 
-        if logger.level >= logging.INFO:
-            print(f'{time.strftime("%H:%M:%S")} FINISHED\n\n')
+        if logger.level <= logging.INFO:
+            print(f'\n{time.strftime("%H:%M:%S")} FINISHED\n\n')
             end_time = datetime.now()
             time_diff = end_time - start_time
             hours, remainder = divmod(time_diff.seconds, 3600)

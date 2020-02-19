@@ -16,7 +16,7 @@ from cci_tagger.utils import fpath_as_pathlib
 from cci_tagger.utils.snippets import get_file_subset
 import logging
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class Dataset(object):
@@ -501,7 +501,7 @@ class Dataset(object):
         :param term: (str) term being processed
         """
         self.not_found_messages.add(f'{facet}: {term}')
-        logger.error(f'Invalid value: {term} in dataset: {self.id} for attribute: {facet}')
+        logger.warning(f'Invalid value: {term} in dataset: {self.id} for attribute: {facet}')
 
     def _parse_file_name(self, fpath):
         """

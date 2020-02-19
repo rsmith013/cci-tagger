@@ -13,7 +13,7 @@ import netCDF4
 from cci_tagger.conf.constants import PRODUCT_VERSION, ALLOWED_GLOBAL_ATTRS
 import logging
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class NetcdfHandler(FileHandler):

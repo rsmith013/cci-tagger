@@ -35,25 +35,11 @@ from cci_tagger.conf.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFOR
     SENSOR, ECV, PROCESSING_LEVEL, PRODUCT_STRING, BROADER_PROCESSING_LEVEL,\
     ALLOWED_GLOBAL_ATTRS
 from cci_tagger.facets import Facets
-from cci_tagger.conf.settings import ERROR_FILE, ESGF_DRS_FILE, MOLES_TAGS_FILE
+from cci_tagger.conf.settings import LOG_FORMAT, ESGF_DRS_FILE, MOLES_TAGS_FILE
 from cci_tagger_json import DatasetJSONMappings
 from cci_tagger.dataset.dataset import Dataset
 from cci_tagger.utils import TaggedDataset
 import logging
-import verboselogs
-
-
-verboselogs.install()
-logger = logging.getLogger(__file__)
-
-# Set up ERROR file log handler
-fh = logging.FileHandler(ERROR_FILE)
-fh.setLevel(logging.ERROR)
-LOG_FORMATTER = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(LOG_FORMATTER)
-
-logger.addHandler(fh)
-
 
 class ProcessDatasets(object):
     """
@@ -123,7 +109,7 @@ class ProcessDatasets(object):
         SENSOR: 'multi-sensor'
     }
 
-    def __init__(self, verbosity=logging.ERROR, suppress_file_output=False,
+    def __init__(self, suppress_file_output=False,
                  json_files=None):
         """
         Initialise the ProcessDatasets class.
@@ -134,12 +120,7 @@ class ProcessDatasets(object):
         @param verbose (int): increase output verbosity
 
         """
-        # Set up console logger
-        ch = logging.StreamHandler()
-        ch.setLevel(verbosity)
-        ch.setFormatter(LOG_FORMATTER)
-        logger.addHandler(ch)
-
+        self.logger = logging.getLogger(__name__)
         self.__suppress_fo = suppress_file_output
 
         self.__facets = Facets()
@@ -183,7 +164,7 @@ class ProcessDatasets(object):
         """
 
         ds_len = len(datasets)
-        logger.info(f'Processing a maximum of {max_file_count if max_file_count > 0 else "unlimited"} files for each of {ds_len} datasets')
+        self.logger.info(f'Processing a maximum of {max_file_count if max_file_count > 0 else "unlimited"} files for each of {ds_len} datasets')
 
         # A sanity check to let you see what files are being included in each dataset
         dataset_file_mapping = {}
