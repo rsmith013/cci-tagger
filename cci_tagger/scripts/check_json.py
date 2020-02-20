@@ -254,7 +254,7 @@ class TestJSONFile:
             self.test_json_formatting()
         except Exception:
             print('CRITICAL: The file cannot be read so no other tests will work')
-            exit(1)
+            raise
 
         # Load the data
         self.data = self._read_file()
