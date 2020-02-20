@@ -90,3 +90,14 @@ ecv=soil moisture
 processing_level=Level 4
 sensor=modis,airs
 ```
+
+## Breaking Changes
+
+### V2.0.0
+- Removed default terms file
+- Removed DRS version based on date
+
+### JSON files
+Can use "," separated strings to provide multiple values for  INSTITUTION, SENSOR, FREQUENCY, PLATFORM or MERGED
+Other fields can only accept strings as is, no attempt to split will be executed.
+

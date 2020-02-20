@@ -29,58 +29,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 '''
 
-import configparser
 
+SPARQL_HOST_NAME = 'vocab.ceda.ac.uk'
 
-# Name of fake section to create
-SECTION_NAME = 'asection'
-
-
-class _FakeSecHead(object):
-    """
-    Create a fake header for the properties file so we can use configparser.
-
-    """
-
-    def __init__(self, file_path):
-        self.file_path = file_path
-        self.sechead = '[{}]\n'.format(SECTION_NAME)
-
-    def readline(self):
-        if self.sechead:
-            try:
-                return self.sechead
-            finally:
-                self.sechead = None
-        else:
-            return self.file_path.readline()
-
-
-class Properties(object):
-    """
-    Parse the properties file.
-
-    """
-
-    def __init__(self, file_path):
-        """
-        Set up the parser using a fake section head.
-
-        @param file_path(str): the name and path of the properties file.
-
-        """
-        self.cp = configparser.ConfigParser()
-        self.cp.read_file(_FakeSecHead(open(file_path)))
-
-    def properties(self):
-        """
-        Get the properties as a dictionary.
-
-        @return a dict where:
-                key = property name
-                value = property value
-        """
-        props = {}
-        for option in self.cp.options(SECTION_NAME):
-            props[option] = self.cp.get(SECTION_NAME, option)
-        return props
+ESGF_DRS_FILE = 'esgf_drs.json'
+MOLES_TAGS_FILE = 'moles_tags.csv'
+MOLES_ESGF_MAPPING_FILE = 'moles_esgf_mapping.csv'
+ERROR_FILE = 'error.log'
+LOG_FORMAT = '%(name)s - %(levelname)s - %(message)s'

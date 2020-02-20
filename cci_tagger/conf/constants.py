@@ -45,3 +45,17 @@ SENSOR = 'sensor'
 
 # Level 2 data is mapped to satellite orbit frequency
 LEVEL_2_FREQUENCY = 'http://vocab.ceda.ac.uk/collection/cci/freq/freq_sat_orb'
+
+# List of allowed netcdf attributes
+ALLOWED_GLOBAL_ATTRS = [FREQUENCY, INSTITUTION, PLATFORM, SENSOR]
+SINGLE_VALUE_FACETS = [BROADER_PROCESSING_LEVEL, DATA_TYPE, ECV, PROCESSING_LEVEL, PRODUCT_STRING]
+
+DRS_FACETS = [ECV, FREQUENCY, PROCESSING_LEVEL, DATA_TYPE, SENSOR, PLATFORM, PRODUCT_STRING, PRODUCT_VERSION]
+
+# Multilabels
+MULTILABELS = {
+    FREQUENCY: 'multi-frequency',
+    INSTITUTION: 'multi-institution',
+    PLATFORM: 'multi-platform',
+    SENSOR: 'multi-sensor'
+}

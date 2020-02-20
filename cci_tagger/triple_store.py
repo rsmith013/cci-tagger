@@ -34,7 +34,7 @@ from rdflib.plugins.stores.sparqlstore import SPARQLStore
 from six import with_metaclass
 from builtins import str
 
-from cci_tagger.settings import SPARQL_HOST_NAME
+from cci_tagger.conf.settings import SPARQL_HOST_NAME
 
 
 class Concept:

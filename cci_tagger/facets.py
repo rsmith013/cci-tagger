@@ -29,10 +29,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 '''
 
-from cci_tagger.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM, \
+from cci_tagger.conf.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFORM, \
     SENSOR, ECV, PLATFORM_PROGRAMME, PLATFORM_GROUP, PROCESSING_LEVEL, \
     PRODUCT_STRING, BROADER_PROCESSING_LEVEL, PRODUCT_VERSION
-from cci_tagger.settings import SPARQL_HOST_NAME
+from cci_tagger.conf.settings import SPARQL_HOST_NAME
 from cci_tagger.triple_store import TripleStore
 
 
@@ -88,7 +88,6 @@ class Facets(object):
 
         self.__facets[facet] = TripleStore.get_concepts_in_scheme(uri)
         self.__facets[f'{facet}-alt'] = TripleStore.get_alt_concepts_in_scheme(uri)
-
 
     def _init_platform_mappings(self):
         """
@@ -166,7 +165,7 @@ class Facets(object):
 
     def get_alt_labels(self, facet):
         """
-        Get the facet alternative labels and uirs.
+        Get the facet alternative labels and URIs.
 
         @param facet (str): the name of the facet
 
@@ -179,7 +178,7 @@ class Facets(object):
 
     def get_labels(self, facet):
         """
-        Get the facet labels and uirs.
+        Get the facet labels and URIs.
 
         @param facet (str): the name of the facet
 
