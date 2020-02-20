@@ -11,7 +11,7 @@ __contact__ = 'richard.d.smith@stfc.ac.uk'
 
 import argparse
 import json
-from cci_tagger.conf.constants import DRS_FACETS
+from cci_tagger.conf.constants import ALL_FACETS
 
 
 class TestJSONFile:
@@ -19,7 +19,7 @@ class TestJSONFile:
     REQUIRED_KEYS = {'datasets'}
     ACCEPTABLE_KEYS = {'datasets', 'filters', 'mappings', 'defaults', 'realisations', 'overrides'}
     FILTER_KEYS = {'pattern','realisation'}
-    FACET_KEYS = set(DRS_FACETS)
+    FACET_KEYS = set(ALL_FACETS)
 
     def __init__(self, file):
         self.file = file

@@ -47,9 +47,11 @@ setup(
 
     # Adds dependencies
     install_requires=[
-        'SPARQLWrapper==1.8.5',
+        'SPARQLWrapper',
         'netCDF4',
         'six',
-        'cci_tagger_json'
+        'cci_tagger_json',
+        'verboselogs',
+
     ],
 )
