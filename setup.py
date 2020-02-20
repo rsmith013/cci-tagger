@@ -32,6 +32,7 @@ setup(
     entry_points={
         'console_scripts': [
             'moles_esgf_tag = cci_tagger:CCITaggerCommandLineClient.main',
+            'cci_json_check = cci_tagger:scripts.TestJSONFile.cmd'
         ],
     },
 
@@ -48,6 +49,7 @@ setup(
     install_requires=[
         'SPARQLWrapper==1.8.5',
         'netCDF4',
-        'six'
+        'six',
+        'cci_tagger_json'
     ],
 )
