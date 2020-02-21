@@ -192,7 +192,7 @@ class ProcessDatasets(object):
         dataset = self.get_dataset(fpath)
 
         # Get the URIs for the datset
-        uris = dataset.get_file_tags(fpath)
+        uris = dataset.get_file_tags(filepath=fpath)
 
         # Turn uris into human readable tags
         tags = self.__facets.process_bag(uris)
