@@ -116,21 +116,19 @@ class Dataset(object):
 
         return ds_id
 
-    def get_drs_labels(self, uris):
+    def get_drs_labels(self, drs_labels):
         """
         Convert the URIs into human readable labels for the DRS.
 
-        :param uris: URIs for each facet (dict)
+        :param uris: Labels generated from each URI (dict)
         :return: Label string for each facet (dict)
         """
-
-        drs_labels = self._facets.process_bag(uris)
 
         for facet in drs_labels:
             # Add the multi labels
             if facet in constants.MULTILABELS:
 
-                terms = uris.get(facet)
+                terms = drs_labels.get(facet)
 
                 if terms:
                     if len(terms) > 1:
@@ -148,7 +146,8 @@ class Dataset(object):
 
             # Make sure facet values are strings not lists
             elif type(drs_labels[facet]) is list:
-                drs_labels[facet] = drs_labels[facet][0]
+                if drs_labels[facet]:
+                    drs_labels[facet] = drs_labels[facet][0]
 
         return drs_labels
 
@@ -651,8 +650,9 @@ class Dataset(object):
         # Convert file from pathlib to posix string
         file = file.as_posix()
 
-        labels = self.get_drs_labels(tags)
-        ds_id = self.generate_ds_id(labels, file)
+        labels = self._facets.process_bag(tags)
+        drs_labels = self.get_drs_labels(labels)
+        ds_id = self.generate_ds_id(drs_labels, file)
 
         # Create a value where the DRS cannot be created
         if not ds_id:
