@@ -15,7 +15,9 @@ import re
 from cci_tagger.utils import fpath_as_pathlib
 from cci_tagger.utils.snippets import get_file_subset
 import logging
+import verboselogs
 
+verboselogs.install()
 logger = logging.getLogger(__name__)
 
 

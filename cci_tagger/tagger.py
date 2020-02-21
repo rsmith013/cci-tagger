@@ -38,6 +38,9 @@ from cci_tagger_json import DatasetJSONMappings
 from cci_tagger.dataset.dataset import Dataset
 from cci_tagger.utils import TaggedDataset
 import logging
+import verboselogs
+
+verboselogs.install()
 
 class ProcessDatasets(object):
     """

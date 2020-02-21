@@ -31,7 +31,7 @@ setup(
 
     entry_points={
         'console_scripts': [
-            'moles_esgf_tag = cci_tagger:CCITaggerCommandLineClient.main',
+            'moles_esgf_tag = cci_tagger:scripts.CCITaggerCommandLineClient.main',
             'cci_json_check = cci_tagger:scripts.TestJSONFile.cmd'
         ],
     },
