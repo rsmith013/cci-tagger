@@ -251,3 +251,11 @@ class ProcessDatasets(object):
         self.__file_csv.close()
 
         self.__file_drs.close()
+
+
+if __name__ == '__main__':
+    import sys
+    filename = sys.argv[1]
+    pds = ProcessDatasets()
+    tds = pds.get_file_tags(fpath=filename)
+    print(tds)

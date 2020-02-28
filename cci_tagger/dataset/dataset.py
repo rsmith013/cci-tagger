@@ -572,9 +572,15 @@ class Dataset(object):
             if global_attr is constants.PLATFORM and '<' in attr:
                 bits = attr.split(', ')
 
+            elif isinstance(attr, list):
+                bits = attr
+
             else:
                 # Can separate based on ; or ,
-                bits = re.split(r'[;,]{1}', attr)
+                if isinstance(attr, str):
+                    bits = re.split(r'[;,]{1}', attr)
+                else:
+                    logger.error(f'Could not process attribute from {global_attr} in {self.id}. Got {attr}, expected string or list')
 
             # Deal with multiplatforms
             if global_attr is constants.PLATFORM:
