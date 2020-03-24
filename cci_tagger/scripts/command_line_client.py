@@ -117,7 +117,7 @@ class CCITaggerCommandLineClient(object):
             '\n\nExamples:'
             '\n  moles_esgf_tag -d /neodc/esacci/cloud/data/L3C/avhrr_noaa-16 '
             '-v'
-            '\n  moles_esgf_tag -f datapath --file_count 2 --no_check_sum -v'
+            '\n  moles_esgf_tag -f datapath --file_count 2 -v'
             '\n  moles_esgf_tag -j example.json -v'
             '\n  moles_esgf_tag -s',
             formatter_class=RawDescriptionHelpFormatter)
@@ -143,7 +143,7 @@ class CCITaggerCommandLineClient(object):
 
         parser.add_argument(
             '--file_count',
-            help='how many .nt files to look at per dataset',
+            help='how many .nc files to look at per dataset',
             type=int, default=0
         )
         parser.add_argument(
