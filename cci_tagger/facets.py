@@ -111,7 +111,7 @@ class Facets(object):
             group_label, _ = TripleStore.get_broader(program_uri)
 
             if group_label:
-                self.__programme_group_mappings[platform.uri] = group_label
+                self.__programme_group_mappings[program_uri] = group_label
 
     def _init_proc_level_mappings(self):
         """
