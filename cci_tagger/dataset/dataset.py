@@ -125,6 +125,7 @@ class Dataset(object):
         :param uris: Labels generated from each URI (dict)
         :return: Label string for each facet (dict)
         """
+        drs_labels = drs_labels.copy()
 
         for facet in drs_labels:
             # Add the multi labels
