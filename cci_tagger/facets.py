@@ -100,17 +100,18 @@ class Facets(object):
         self.__platform_programme_mappings = {}
         self.__programme_group_mappings = {}
 
+        vals = self.__facets[PLATFORM].values()
         for platform in self.__facets[PLATFORM].values():
             program_label, program_uri = TripleStore.get_broader(platform)
 
             # Get the broader terms for each of the uris in the platform list
-            self.__platform_programme_mappings[platform] = program_label
+            self.__platform_programme_mappings[platform.uri] = program_label
 
             # Get group labels from the broader platform uri
             group_label, _ = TripleStore.get_broader(program_uri)
 
             if group_label:
-                self.__programme_group_mappings[platform] = group_label
+                self.__programme_group_mappings[platform.uri] = group_label
 
     def _init_proc_level_mappings(self):
         """
