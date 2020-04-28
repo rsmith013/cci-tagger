@@ -90,6 +90,7 @@ class Dataset(object):
 
         :return: ID
         """
+        MISSING_VALUES = False
 
         ds_id = self.DRS_ESACCI
 
@@ -98,8 +99,8 @@ class Dataset(object):
             facet_value = drs_facets.get(facet)
 
             if not facet_value:
-                logger.error(f'Missing DRS facet: {facet} in {self.id}' )
-                return
+                MISSING_VALUES = True
+                logger.error(f'Missing DRS facet: {facet} in {self.id} for file: {filepath}' )
 
             else:
 
@@ -112,6 +113,8 @@ class Dataset(object):
 
                 ds_id = f'{ds_id}.{facet_value}'
 
+        if MISSING_VALUES:
+            return
 
         # Add realisation
         ds_id = f'{ds_id}.{self.dataset_json_mappings.get_dataset_realisation(self.id, filepath)}'
