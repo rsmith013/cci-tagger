@@ -176,8 +176,14 @@ def main():
         }
 
         datasets = scan(es, query=query, index=collections_index)
+        datasets = list(datasets)
 
-        # Generate pages
+        # Get list of drs ids
+        drs_ids = []
+        for result in datasets:
+            drs_ids.extend(result['_source'].get('drsId',[]))
+
+        # Generate page
         datasets = [Dataset(result, conf).as_dict() for result in datasets]
 
         template = env.get_template('ecv.html')
@@ -190,6 +196,7 @@ def main():
             writer.write(template.render({
                 'title': ecv,
                 'datasets': datasets,
+                'drs_ids': drs_ids,
                 'FILES_INDEX': files_index,
                 'HOST': host
             }))

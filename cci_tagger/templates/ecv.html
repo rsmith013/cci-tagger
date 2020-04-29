@@ -2,6 +2,12 @@
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
     <h1 class="mt4">{{ title }}</h1>
+    <h3>All DRS IDs in ECV</h3>
+    <ul>
+        {% for drs in drs_ids %}
+            <li>{{ drs }}</li>
+        {% endfor %}
+    </ul>
     <div class="row">
         <div class="col">
             {% for dataset in datasets %}
