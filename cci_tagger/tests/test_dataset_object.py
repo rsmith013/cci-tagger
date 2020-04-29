@@ -8,28 +8,36 @@ __copyright__ = 'Copyright 2018 United Kingdom Research and Innovation'
 __license__ = 'BSD - see LICENSE file in top-level package directory'
 __contact__ = 'richard.d.smith@stfc.ac.uk'
 
+from cci_tagger_json import DatasetJSONMappings
 from cci_tagger.dataset.dataset import Dataset
 from cci_tagger.facets import Facets
-from cci_tagger.dataset.dataset_tree import DatasetJSONMappings
 
-# filepath = '/Users/vdn73631/Documents/dev/cci-tagger/cci_tagger/tests/ESACCI-SEASURFACESALINITY-L4-SSS-MERGED_OI_7DAY_RUNNINGMEAN_DAILY_25km-20120101-fv1.8.nc'
-filepath = '/Users/vdn73631/Documents/dev/cci-tagger/cci_tagger/tests/ESACCI-SEAICE-L2P-SITHICK-SIRAL_CRYOSAT2-NH-20160101-fv2.0.nc'
+PATH = '/Users/vdn73631/Documents/dev/CCI_KE_PROJECT/cci-tagger/cci_tagger/tests/ocean_colour/ESACCI-OC-L3S-CHLOR_A-MERGED-5D_DAILY_4km_GEO_PML_OCx-20000101-fv4.0.nc'
+PATH = '/Users/vdn73631/Documents/dev/CCI_KE_PROJECT/cci-tagger/cci_tagger/tests/cloud/200707-ESACCI-L3C_CLOUD-CLD_PRODUCTS-AVHRR_METOPA-fv2.0.nc'
+# PATH = '/Users/vdn73631/Documents/dev/CCI_KE_PROJECT/cci-tagger/cci_tagger/tests/sst/19960202120000-ESACCI-L4_GHRSST-SSTdepth-OSTIA-GLOB_CDR2.1-v02.0-fv01.0.nc'
+PATH = '/Users/vdn73631/Documents/dev/CCI_KE_PROJECT/cci-tagger/cci_tagger/tests/biomass/ESACCI-BIOMASS-L4-AGB-MERGED-100m-2017-fv1.0.nc'
 
+# GET JSON FILES
+mappings = DatasetJSONMappings(['/Users/vdn73631/Documents/dev/CCI_KE_PROJECT/cci-tagger/cci_tagger/tests/test_json_files/biomass.json'])
 facets = Facets()
-json_mappings = DatasetJSONMappings('test_json_files')
 
-dataset = json_mappings.get_dataset(filepath)
+dataset_id = mappings.get_dataset(PATH)
 
-d = Dataset(dataset, json_mappings, facets)
+dataset = Dataset(dataset_id, mappings, facets)
 
-# print(d.process_dataset(max_file_count=1))
+uris = dataset.get_file_tags(filepath=PATH)
 
+tags = facets.process_bag(uris)
 
-uris = d.get_file_tags(filepath=filepath)
+drs_facets = dataset.get_drs_labels(tags)
+
+drs = dataset.generate_ds_id(drs_facets, PATH)
+
 print(uris)
 
-labels = d.get_drs_labels(uris)
-print(labels)
+print(tags)
 
-drs = d.generate_ds_id(labels)
+print(drs_facets)
+
 print(drs)
+

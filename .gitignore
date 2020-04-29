@@ -5,3 +5,4 @@
 cci_tagger/tests/*.nc
 venv
 cci_tagger/tests
+html
