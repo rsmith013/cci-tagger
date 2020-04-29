@@ -100,7 +100,11 @@ class Dataset(object):
 
             if not facet_value:
                 MISSING_VALUES = True
-                logger.error(f'Missing DRS facet: {facet} in {self.id} for file: {filepath}' )
+                if filepath.endswith(('.nc','.prj','.shp','.shx')):
+                    logger.error(f'Missing DRS facet: {facet} in {self.id} for file: {filepath}')
+                else:
+                    logger.warning(f'Missing DRS facet: {facet} in {self.id} for file: {filepath}')
+
 
             else:
 
