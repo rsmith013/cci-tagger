@@ -32,7 +32,7 @@ setup(
     entry_points={
         'console_scripts': [
             'moles_esgf_tag = cci_tagger:scripts.CCITaggerCommandLineClient.main',
-            'cci_json_check = cci_tagger:scripts.check_json.TestJSONFile.cmd',
+            'cci_json_check = cci_tagger:scripts.TestJSONFile.cmd',
             'cci_check_tags = cci_tagger:scripts.check_tags.main'
         ],
     },
