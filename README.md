@@ -15,10 +15,13 @@ python -m venv venv
 source venv/bin/activate
 ```
 
-Find the [latest release of the code](https://github.com/cedadev/cci-tagger/releases) and install it in the virtual environment, i.e. for version 1.0.4:
+Install the latest version of the library
 
 ```bash
-pip install https://github.com/cedadev/cci-tagger/archive/v1.0.4.tar.gz
+git clone https://github.com/rsmith013/cci-tagger
+cd cci-tagger
+pip install -r requirements.txt
+pip install -e .
 ```
 
 ## Command Line Script
