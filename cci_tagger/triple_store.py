@@ -51,6 +51,13 @@ class Concept:
     def __repr__(self):
         return self.uri
 
+    def __dict__(self):
+        return {
+            'uri': self.uri,
+            'tag': self.tag
+        }
+
+
 class TripleStoreMC(type):
     """
     This class provides methods to query the triple store.
@@ -123,9 +130,9 @@ class TripleStoreMC(type):
         """
         graph = TripleStore._graph
         statement = (
-            '%s SELECT ?concept WHERE { GRAPH ?g {?concept skos:inScheme <%s> '
-            'FILTER regex(str(?concept), "^http://vocab.nerc.ac.uk", "i")}}' %
-            (cls.__prefix, uri))
+                '%s SELECT ?concept WHERE { GRAPH ?g {?concept skos:inScheme <%s> '
+                'FILTER regex(str(?concept), "^http://vocab.nerc.ac.uk", "i")}}' %
+                (cls.__prefix, uri))
         result_set = graph.query(statement)
         concepts = {}
 
@@ -176,9 +183,9 @@ class TripleStoreMC(type):
         """
         graph = TripleStore._graph
         statement = (
-            '%s SELECT ?concept WHERE { GRAPH ?g {?concept skos:inScheme <%s> '
-            'FILTER regex(str(?concept), "^http://vocab.nerc.ac.uk", "i")}}' %
-            (cls.__prefix, uri))
+                '%s SELECT ?concept WHERE { GRAPH ?g {?concept skos:inScheme <%s> '
+                'FILTER regex(str(?concept), "^http://vocab.nerc.ac.uk", "i")}}' %
+                (cls.__prefix, uri))
         result_set = graph.query(statement)
 
         concepts = {}

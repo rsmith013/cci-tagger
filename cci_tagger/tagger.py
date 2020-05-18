@@ -39,6 +39,7 @@ from cci_tagger.dataset.dataset import Dataset
 from cci_tagger.utils import TaggedDataset
 import logging
 import verboselogs
+import json
 
 verboselogs.install()
 
@@ -102,7 +103,7 @@ class ProcessDatasets(object):
     __moles_facets = SINGLE_VALUE_FACETS + ALLOWED_GLOBAL_ATTRS
 
     def __init__(self, suppress_file_output=False,
-                 json_files=None):
+                 json_files=None, facet_json=None, **kwargs):
         """
         Initialise the ProcessDatasets class.
 
@@ -115,7 +116,13 @@ class ProcessDatasets(object):
         self.logger = logging.getLogger(__name__)
         self.__suppress_fo = suppress_file_output
 
-        self.__facets = Facets()
+        if facet_json:
+            with open(facet_json, 'r') as reader:
+                self.__facets = Facets.from_json(json.load(reader))
+                print(self.__facets)
+        else:
+            self.__facets = Facets()
+
         self.__file_drs = None
         self.__file_csv = None
         self._open_files()

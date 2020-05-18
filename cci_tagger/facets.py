@@ -33,7 +33,8 @@ from cci_tagger.conf.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFOR
     SENSOR, ECV, PLATFORM_PROGRAMME, PLATFORM_GROUP, PROCESSING_LEVEL, \
     PRODUCT_STRING, BROADER_PROCESSING_LEVEL, PRODUCT_VERSION
 from cci_tagger.conf.settings import SPARQL_HOST_NAME
-from cci_tagger.triple_store import TripleStore
+from cci_tagger.triple_store import TripleStore, Concept
+import json
 
 
 class Facets(object):
@@ -60,29 +61,32 @@ class Facets(object):
         PRODUCT_STRING: f'{VOCAB_URL}/product'
     }
 
-    # a dict of concept schemes
-    __facets = {}
 
-    # mapping from platform uri to platform programme label
-    __platform_programme_mappings = {}
 
-    # mapping from platform uri to platform group label
-    __programme_group_mappings = {}
+    def __init__(self, from_json=False):
 
-    # mapping for process levels
-    __proc_level_mappings = {}
+        # a dict of concept schemes
+        self.__facets = {}
 
-    # Reversed mapping to allow lookup from uri to tag.
-    __reversible_facets = {}
+        # mapping from platform uri to platform programme label
+        self.__platform_programme_mappings = {}
 
-    def __init__(self):
+        # mapping from platform uri to platform group label
+        self.__programme_group_mappings = {}
 
-        for facet, uri in self.FACET_ENDPOINTS.items():
-            self._init_concepts(facet, uri)
+        # mapping for process levels
+        self.__proc_level_mappings = {}
 
-        self._init_proc_level_mappings()
-        self._init_platform_mappings()
-        self._reverse_facet_mappings()
+        # Reversed mapping to allow lookup from uri to tag.
+        self.__reversible_facets = {}
+
+        if not from_json:
+            for facet, uri in self.FACET_ENDPOINTS.items():
+                self._init_concepts(facet, uri)
+
+            self._init_proc_level_mappings()
+            self._init_platform_mappings()
+            self._reverse_facet_mappings()
 
     def _init_concepts(self, facet, uri):
 
@@ -100,7 +104,6 @@ class Facets(object):
         self.__platform_programme_mappings = {}
         self.__programme_group_mappings = {}
 
-        vals = self.__facets[PLATFORM].values()
         for platform in self.__facets[PLATFORM].values():
             program_label, program_uri = TripleStore.get_broader(platform)
 
@@ -347,3 +350,52 @@ class Facets(object):
 
         return output
 
+    def to_json(self):
+        response = {}
+
+        # Get the __facet values
+        __facet_dict = {}
+        for facet, values in self.__facets.items():
+            __facet_dict[facet] = {}
+            for label, concept in values.items():
+                # Concepts can either be a Concept Object or a string
+                if isinstance(concept, str):
+                    __facet_dict[facet][label] = concept
+                else:
+                    __facet_dict[facet][label] = concept.__dict__()
+
+        response['__facets'] = __facet_dict
+
+        # Add the other attributes
+        response['__platform_programme_mappings'] = self.__platform_programme_mappings
+        response['__programme_group_mappings'] = self.__programme_group_mappings
+        response['__proc_level_mappings'] = self.__proc_level_mappings
+        response['__reversible_facets'] = self.__reversible_facets
+
+        return response
+
+    @classmethod
+    def from_json(cls, data):
+        
+        # Extract the __facet values
+        __facet_dict = {}
+        for facet, values in data['__facets'].items():
+            __facet_dict[facet] = {}
+            for label, concept in values.items():
+                # Concepts can either be a Concept Object or a string
+                if isinstance(concept, str):
+                    __facet_dict[facet][label] = concept
+                else:
+                    __facet_dict[facet][label] = Concept(**concept)
+
+        obj = cls(from_json=True)
+
+        obj.__facets = __facet_dict
+
+        # Extract the other attributes
+        obj.__platform_programme_mappings = data['__platform_programme_mappings']
+        obj.__programme_group_mappings = data['__programme_group_mappings']
+        obj.__proc_level_mappings = data['__proc_level_mappings']
+        obj.__reversible_facets = data['__reversible_facets']
+
+        return obj
