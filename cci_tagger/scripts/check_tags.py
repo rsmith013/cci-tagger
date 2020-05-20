@@ -47,7 +47,7 @@ class Dataset:
 
         host = conf.get('elasticsearch', 'host')
         self.files_index = conf.get('elasticsearch', 'files_index')
-        self.es = Elasticsearch([host])
+        self.es = Elasticsearch([host], verify_certs=False)
         self.opensearch_fields = {}
         self.total_files = 0
         self.files_without_drs = 0
@@ -122,7 +122,7 @@ def main():
     env.lstrip_blocks = True
 
     # Setup elasticsearch connection
-    es = Elasticsearch([host])
+    es = Elasticsearch([host], verify_certs=False)
 
     # Get list of all ECVs
     query = {
