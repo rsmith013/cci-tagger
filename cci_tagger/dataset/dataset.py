@@ -141,7 +141,7 @@ class Dataset(object):
                 terms = drs_labels.get(facet)
 
                 if terms:
-                    if len(terms) > 1:
+                    if not facet is constants.PLATFORM and len(terms) > 1:
                         drs_labels[facet] = constants.MULTILABELS.get(facet)
 
                     # Platform is a little different because there can be 1 URI
@@ -316,7 +316,11 @@ class Dataset(object):
 
                         if facet is constants.PLATFORM:
                             # Add the broader terms
-                            uris.update(self._get_programme_group(uri))
+                            plt_group = self._get_programme_group(uri)
+                            if plt_group:
+                                group_from_bag = uri_bag.get(constants.PLATFORM_GROUP, set())
+                                group_from_bag.update(plt_group)
+                                uri_bag[constants.PLATFORM_GROUP] = group_from_bag
 
                     # If platform does not return a URI try to get platform programmes tags
                     elif facet is constants.PLATFORM:
