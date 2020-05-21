@@ -141,7 +141,7 @@ class Dataset(object):
                 terms = drs_labels.get(facet)
 
                 if terms:
-                    if not facet is constants.PLATFORM and len(terms) > 1:
+                    if len(terms) > 1:
                         drs_labels[facet] = constants.MULTILABELS.get(facet)
 
                     # Platform is a little different because there can be 1 URI
