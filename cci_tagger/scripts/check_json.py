@@ -121,7 +121,7 @@ def test_results(func):
 class TestJSONFile:
 
     REQUIRED_KEYS = {'datasets'}
-    ACCEPTABLE_KEYS = {'datasets', 'filters', 'mappings', 'defaults', 'realisations', 'overrides'}
+    ACCEPTABLE_KEYS = {'datasets', 'filters', 'mappings', 'defaults', 'realisations', 'overrides', 'aggregations'}
     FILTER_KEYS = {'pattern','realisation'}
     FACET_KEYS = set(ALL_FACETS)
 
@@ -193,7 +193,7 @@ class TestJSONFile:
         # Check for invalid keys
         unacceptable_keys = keys_in_file.difference(self.ACCEPTABLE_KEYS)
         if unacceptable_keys:
-            results.add(f'Invalid sections. {unacceptable_keys} are not valid section keys')
+            results.add_error(f'Invalid sections. {unacceptable_keys} are not valid section keys')
 
         return results
 
@@ -374,6 +374,41 @@ class TestJSONFile:
         self._check_valid_keys(overrides, self.FACET_KEYS, results)
 
         return results
+
+    @test_results
+    def test_aggregations(self, results):
+        """
+        Checks the aggregations section
+        - Check aggregations returns a list
+        - Check each item of list is a dict
+        - Check each dict has a pattern key
+        - Check if each dict has a wms, that the value is a JSON. boolean
+        :param results:
+        :return:
+        """
+
+        aggregations = self.data.get('aggregations')
+
+        if aggregations is None:
+            return results
+
+        # Check aggregations returns a list
+        if not self._check_type('Aggregations', aggregations, list, results):
+            return results
+
+        # Check each item of list is a dict
+        for agg_filter in aggregations:
+            if not self._check_type('Aggregation filter', filter, dict, results):
+                return results
+
+            # Check each dict has a pattern key
+            self._check_valid_keys(filter, ('pattern','wms'), results)
+            if not agg_filter.get('pattern'):
+                results.add_error(f'Aggregation filter does not have required key: "pattern"')
+
+            # Check if each dict has a wms, that the value is a boolean
+            if agg_filter.get('wms'):
+                self._check_type('Aggregation WMS', filter.get('wms'), bool, results)
 
     def run_test(self, callable):
 
