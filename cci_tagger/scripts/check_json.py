@@ -398,17 +398,20 @@ class TestJSONFile:
 
         # Check each item of list is a dict
         for agg_filter in aggregations:
-            if not self._check_type('Aggregation filter', filter, dict, results):
+            if not self._check_type('Aggregation filter', agg_filter, dict, results):
                 return results
 
             # Check each dict has a pattern key
-            self._check_valid_keys(filter, ('pattern','wms'), results)
+            self._check_valid_keys(agg_filter, ('pattern','wms'), results)
+
             if not agg_filter.get('pattern'):
                 results.add_error(f'Aggregation filter does not have required key: "pattern"')
 
             # Check if each dict has a wms, that the value is a boolean
             if agg_filter.get('wms'):
-                self._check_type('Aggregation WMS', filter.get('wms'), bool, results)
+                self._check_type('Aggregation WMS', agg_filter.get('wms'), bool, results)
+
+        return results
 
     def run_test(self, callable):
 
