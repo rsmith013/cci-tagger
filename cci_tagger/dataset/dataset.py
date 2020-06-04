@@ -456,8 +456,9 @@ class Dataset(object):
 
             try:
                 group = self._facets.get_programmes_group(programme_uri)
-                group_uri = self._get_term_uri(constants.PLATFORM_GROUP, group)
-                tags.append(group_uri)
+                if group:
+                    group_uri = self._get_term_uri(constants.PLATFORM_GROUP, group)
+                    tags.append(group_uri)
 
             except KeyError:
                 # not all programmes have groups
