@@ -39,7 +39,7 @@
                                         {% elif value is none %}
                                             {{ value }}
                                         {% elif value is mapping %}
-                                            {{ value }}
+                                            <code>{{ value }}</code>
                                         {% else %}
                                             <ul>
                                                 {% for item in value %}

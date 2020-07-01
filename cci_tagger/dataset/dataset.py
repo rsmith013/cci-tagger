@@ -117,13 +117,15 @@ class Dataset(object):
 
                 ds_id = f'{ds_id}.{facet_value}'
 
-        if MISSING_VALUES:
+        # Get realisation
+        realisation = self.dataset_json_mappings.get_dataset_realisation(self.id, filepath)
+
+        # Don't generate a DRS ID if there are missing values or
+        # the files have been marked for exclusion from DRS
+        if MISSING_VALUES or realisation == constants.EXCLUDE_REALISATION:
             return
 
-        # Add realisation
-        ds_id = f'{ds_id}.{self.dataset_json_mappings.get_dataset_realisation(self.id, filepath)}'
-
-        return ds_id
+        return f'{ds_id}.{realisation}'
 
     def get_drs_labels(self, drs_labels):
         """

@@ -60,3 +60,5 @@ MULTILABELS = {
     PLATFORM: 'multi-platform',
     SENSOR: 'multi-sensor'
 }
+
+EXCLUDE_REALISATION = 'EXCLUDE'
