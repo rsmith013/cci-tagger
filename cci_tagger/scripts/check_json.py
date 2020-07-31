@@ -133,7 +133,7 @@ class TestJSONFile:
 
 
     def _read_file(self):
-        with open(self.file) as reader:
+        with open(self.file, encoding='utf-8') as reader:
             data = json.load(reader)
         return data
 

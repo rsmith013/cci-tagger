@@ -34,7 +34,7 @@ from cci_tagger.conf.constants import DATA_TYPE, FREQUENCY, INSTITUTION, PLATFOR
     PRODUCT_STRING, BROADER_PROCESSING_LEVEL, PRODUCT_VERSION
 from cci_tagger.conf.settings import SPARQL_HOST_NAME
 from cci_tagger.triple_store import TripleStore, Concept
-import json
+import re
 
 
 class Facets(object):
@@ -59,6 +59,21 @@ class Facets(object):
         SENSOR: f'{VOCAB_URL}/sensor',
         INSTITUTION: f'{VOCAB_URL}/org',
         PRODUCT_STRING: f'{VOCAB_URL}/product'
+    }
+
+    LABEL_SOURCE = {
+        BROADER_PROCESSING_LEVEL: '_get_pref_label',
+        DATA_TYPE: '_get_alt_label',
+        ECV: '_get_alt_label',
+        FREQUENCY: '_get_pref_label',
+        INSTITUTION: '_get_pref_label',
+        PLATFORM: '_get_platform_label',
+        PLATFORM_PROGRAMME: '_get_pref_label',
+        PLATFORM_GROUP: '_get_pref_label',
+        PROCESSING_LEVEL: '_get_alt_label',
+        PRODUCT_STRING: '_get_pref_label',
+        PRODUCT_VERSION: None,
+        SENSOR: '_get_pref_label'
     }
 
 
@@ -269,27 +284,44 @@ class Facets(object):
         :return:
         """
 
-        label_source = {
-            BROADER_PROCESSING_LEVEL: self._get_pref_label,
-            DATA_TYPE: self._get_alt_label,
-            ECV: self._get_alt_label,
-            FREQUENCY: self._get_pref_label,
-            INSTITUTION: self._get_pref_label,
-            PLATFORM: self._get_platform_label,
-            PLATFORM_PROGRAMME: self._get_pref_label,
-            PLATFORM_GROUP: self._get_pref_label,
-            PROCESSING_LEVEL: self._get_alt_label,
-            PRODUCT_STRING: self._get_pref_label,
-            PRODUCT_VERSION: None,
-            SENSOR: self._get_pref_label
-        }
+        label_routing_string = self.LABEL_SOURCE.get(facet)
 
-        label_routing_func = label_source.get(facet)
+        # Turn string into a callable
+        label_routing_func = getattr(self, label_routing_string)
 
         if label_routing_func:
             return label_routing_func(facet, uri)
 
         return uri
+
+    def get_pref_label_from_alt_label(self, facet, label):
+        """
+        Reverse the lookup from alt label to pref label
+        :param facet: facet label belongs to
+        :param label: label to check
+        :return: pref_label
+        """
+
+        facet_l = facet.lower()
+        term_l = label.lower()
+
+        # Check the term source
+        mapping = self.LABEL_SOURCE.get(facet_l)
+
+        if mapping:
+            m = re.match('^_get_(?P<label>\w+)_label$', mapping)
+            if m:
+                source = m.group('label')
+
+                # These sources are alread the pref label
+                if source in ('pref', 'product'):
+                    return term_l
+                else:
+                    # Get the URI and then get pref label
+                    if term_l in self.get_alt_labels(facet):
+                        uri = self.get_alt_labels(facet)[term_l].uri
+                        return self._get_pref_label(facet_l, uri)
+        return term_l
 
     def _get_pref_label(self, facet, uri):
         """

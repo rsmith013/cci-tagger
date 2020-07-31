@@ -33,7 +33,8 @@ setup(
         'console_scripts': [
             'moles_esgf_tag = cci_tagger.scripts:CCITaggerCommandLineClient.main',
             'cci_json_check = cci_tagger.scripts:TestJSONFile.cmd',
-            'cci_check_tags = cci_tagger.scripts.check_tags:main'
+            'cci_check_tags = cci_tagger.scripts.check_tags:main',
+            'export_facet_json = cci_tagger.scripts.dump_facet_object:main'
         ],
     },
 
