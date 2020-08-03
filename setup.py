@@ -52,7 +52,6 @@ setup(
         'SPARQLWrapper',
         'netCDF4',
         'six',
-        'cci_tagger_json',
         'verboselogs',
 
     ],
