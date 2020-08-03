@@ -110,6 +110,7 @@ class Dataset(object):
 
                 facet_value = str(drs_facets[facet]).replace('.', '-')
                 facet_value = facet_value.replace(' ', '-')
+                facet_value = facet_value.replace('/', '-')
 
                 if facet is constants.FREQUENCY:
                     facet_value = facet_value.replace('month', 'mon')
