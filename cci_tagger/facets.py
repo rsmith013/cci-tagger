@@ -286,11 +286,13 @@ class Facets(object):
 
         label_routing_string = self.LABEL_SOURCE.get(facet)
 
-        # Turn string into a callable
-        label_routing_func = getattr(self, label_routing_string)
+        if label_routing_string:
 
-        if label_routing_func:
-            return label_routing_func(facet, uri)
+            # Turn string into a callable
+            label_routing_func = getattr(self, label_routing_string)
+
+            if label_routing_func:
+                return label_routing_func(facet, uri)
 
         return uri
 
