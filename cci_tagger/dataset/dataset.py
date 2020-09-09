@@ -120,13 +120,14 @@ class Dataset(object):
 
         # Get realisation
         realisation = self.dataset_json_mappings.get_dataset_realisation(self.id, filepath)
+        dsid = f'{ds_id}.{realisation}'
 
         # Don't generate a DRS ID if there are missing values or
         # the files have been marked for exclusion from DRS
         if MISSING_VALUES or realisation == constants.EXCLUDE_REALISATION:
             return
 
-        return f'{ds_id}.{realisation}'
+        return dsid
 
     def get_drs_labels(self, drs_labels):
         """
